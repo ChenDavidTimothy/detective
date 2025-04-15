@@ -1,12 +1,12 @@
-// app/cases/[id]/case-detail-view.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { DetectiveCase } from '@/lib/detective-cases';
 import { useCaseAccess } from '@/hooks/useCaseAccess';
 import { PayPalCheckout } from '@/components/PayPalCheckout';
+import { PaymentResult } from '@/components/PaymentResult';
 import {
   Card,
   CardContent,
@@ -27,19 +27,16 @@ type CaseDetailViewProps = {
 export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailViewProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { hasAccess, isLoading, error } = useCaseAccess(caseId);
+  const { hasAccess, isLoading, error, refresh } = useCaseAccess(caseId);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  useEffect(() => {
-    // Reload the page after successful payment to refresh access status
-    if (paymentSuccess) {
-      const timer = setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [paymentSuccess]);
+  // When payment is successful, refresh access check
+  const handlePaymentSuccess = (details: Record<string, unknown>) => {
+    setPaymentSuccess(true);
+    refresh(); // Re-fetch access from Supabase
+    // Optionally, log details
+    console.log('Payment completed successfully', details);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -107,12 +104,6 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                   </div>
                 </div>
               </>
-            ) : paymentSuccess ? (
-              <Alert className="bg-green-50 dark:bg-green-900/20 border-green-500">
-                <AlertDescription className="text-green-600 dark:text-green-400">
-                  Payment successful! Refreshing page...
-                </AlertDescription>
-              </Alert>
             ) : (
               <div className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
@@ -128,25 +119,44 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                 )}
 
                 <div className="mt-4">
-                  {user ? (
+                  {paymentSuccess ? (
+                    <PaymentResult 
+                      status="success"
+                      message="Thank you for your purchase! You now have access to this case."
+                      redirectPath={`/cases/${caseId}`}
+                      redirectLabel="View Case Details"
+                      autoRedirectSeconds={2}
+                    />
+                  ) : user ? (
                     <ErrorBoundary
-                      fallbackRender={() => (
+                      fallbackRender={({ error, resetErrorBoundary }) => (
                         <div className="p-4 border border-destructive rounded-lg">
-                          <p className="text-destructive">
-                            Payment system temporarily unavailable.
+                          <p className="text-destructive font-medium">
+                            Payment system error
                           </p>
-                          <p className="text-sm text-muted-foreground mt-2">
-                            Please try again later.
+                          <p className="text-sm text-muted-foreground mt-2 mb-4">
+                            {error instanceof Error ? error.message : 'An unexpected error occurred'}
                           </p>
+                          <Button 
+                            onClick={resetErrorBoundary}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Try Again
+                          </Button>
                         </div>
                       )}
+                      onReset={() => {
+                        // Any cleanup needed when error boundary resets
+                        console.log('Payment component error boundary reset');
+                      }}
                     >
                       <PayPalCheckout
                         detectiveCase={detectiveCase}
-                        onSuccess={() => setPaymentSuccess(true)}
-                        onError={(err) =>
-                          console.error('Payment failed:', err)
-                        }
+                        onSuccess={handlePaymentSuccess}
+                        onError={(err) => {
+                          console.error('Payment failed:', err);
+                        }}
                       />
                     </ErrorBoundary>
                   ) : (

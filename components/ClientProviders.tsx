@@ -3,6 +3,7 @@
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { PayPalProvider } from '@/contexts/PayPalContext';
 import ProtectedRoute from '@/contexts/ProtectedRoute';
 import TopBar from '@/components/TopBar';
 
@@ -16,11 +17,13 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
     <>
       <Analytics mode="auto" />
       <ThemeProvider>
-        <AuthProvider>   
-          <ProtectedRoute>
-            <TopBar />    
-            <main>{children}</main>
-          </ProtectedRoute>
+        <AuthProvider>
+          <PayPalProvider>
+            <ProtectedRoute>
+              <TopBar />    
+              <main>{children}</main>
+            </ProtectedRoute>
+          </PayPalProvider>
         </AuthProvider>
       </ThemeProvider>
     </>
