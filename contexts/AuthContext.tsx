@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase';
+import { normalizeAuthError, type NormalizedAuthError } from '@/utils/auth-helpers';
 import { 
   Session, 
   User, 
@@ -21,11 +22,12 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<{ 
     data: { user: User | null } | null; 
-    error: Error | null;
+    error: NormalizedAuthError | null;
   }>;
   updatePassword: (newPassword: string) => Promise<void>;
   updateEmail: (newEmail: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  checkEmailExists: (email: string) => Promise<{ exists: boolean; provider?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -84,6 +86,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializeAuth();
   }, []);
 
+  // Check if an email already exists
+  const checkEmailExists = async (email: string) => {
+    try {
+      // Use our API endpoint for accurate provider information
+      const response = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to check email');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error checking email existence:', error);
+      // Fallback method if API call fails
+      try {
+        // Use the signIn method with an invalid password to check if user exists
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password: 'check_email_exists_dummy_password'
+        });
+        
+        if (error) {
+          const errorMsg = error.message.toLowerCase();
+          
+          if (errorMsg.includes('invalid login credentials')) {
+            // User exists but password is wrong (expected)
+            return { exists: true, provider: 'email' }; // Default to email
+          }
+          
+          if (errorMsg.includes('user already exists') ||
+              errorMsg.includes('already registered')) {
+            return { exists: true, provider: 'email' };
+          }
+        }
+        
+        // If we get here, user doesn't exist
+        return { exists: false };
+      } catch (error) {
+        console.error('Error in fallback email check:', error);
+        // If error, assume user doesn't exist to allow signup attempt
+        return { exists: false };
+      }
+    }
+  };
+
   const value = {
     user,
     session,
@@ -98,33 +149,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     },
     signInWithEmail: async (email: string, password: string) => {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (authError) throw authError;
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (authError) throw authError;
 
-      // Check if user was previously soft-deleted
-      const { data: profile } = await supabase
-        .from('users')
-        .select('is_deleted, deleted_at')
-        .eq('id', authData.user?.id)
-        .single();
-
-      if (profile?.is_deleted) {
-        // Reactivate the account
-        await supabase
+        // Check if user was previously soft-deleted
+        const { data: profile } = await supabase
           .from('users')
-          .update({ 
-            is_deleted: false, 
-            deleted_at: null,
-            reactivated_at: new Date().toISOString() 
-          })
-          .eq('id', authData.user?.id);
-      }
+          .select('is_deleted, deleted_at')
+          .eq('id', authData.user?.id)
+          .single();
 
-      return authData;
+        if (profile?.is_deleted) {
+          // Reactivate the account
+          await supabase
+            .from('users')
+            .update({ 
+              is_deleted: false, 
+              deleted_at: null,
+              reactivated_at: new Date().toISOString() 
+            })
+            .eq('id', authData.user?.id);
+        }
+
+        return authData;
+      } catch (error) {
+        // Normalize auth errors
+        const normalizedError = normalizeAuthError(error);
+        throw normalizedError;
+      }
     },
     signOut: async () => {
       try {
@@ -144,15 +201,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     },
     signUpWithEmail: async (email: string, password: string) => {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+      try {
+        // First, check if the email already exists
+        const { exists, provider } = await checkEmailExists(email);
+        
+        if (exists) {
+          // Return a normalized error about the existing account
+          return { 
+            data: null, 
+            error: {
+              type: 'email-already-exists',
+              message: provider === 'google' 
+                ? "This email is already used with Google Sign In. Please use Google to sign in."
+                : "This email is already registered. Please sign in instead.",
+            }
+          };
         }
-      });
-      if (error) throw error;
-      return { data, error };
+        
+        // If email doesn't exist, proceed with signup
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
+        });
+        
+        if (error) throw error;
+        return { data, error: null };
+      } catch (error) {
+        return { 
+          data: null, 
+          error: normalizeAuthError(error)
+        };
+      }
     },
     updatePassword: async (newPassword: string) => {
       const { error } = await supabase.auth.updateUser({
@@ -171,7 +253,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         redirectTo: `${window.location.origin}/update-password`
       });
       if (error) throw error;
-    }
+    },
+    checkEmailExists
   };
 
   return (

@@ -6,7 +6,8 @@ export async function GET(request: Request) {
   console.log('AuthCallback: Processing callback');
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next');
+  const next = requestUrl.searchParams.get('next') || requestUrl.searchParams.get('redirect');
+  const linking = requestUrl.searchParams.get('linking') === 'true';
 
   if (code) {
     console.log('AuthCallback: Exchanging code for session');
@@ -33,35 +34,59 @@ export async function GET(request: Request) {
       }
     );
 
-    // Exchange the code for a session
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    
-    if (error) {
-      console.error('AuthCallback: Error:', error);
-      return NextResponse.redirect(new URL('/login?error=auth-failed', requestUrl.origin));
-    }
+    try {
+      // Exchange the code for a session
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      
+      if (error) {
+        console.error('AuthCallback: Error:', error);
+        
+        // Handle specific error cases
+        if (error.message?.includes('already registered') || error.message?.includes('already in use')) {
+          return NextResponse.redirect(
+            new URL('/login?error=email-exists', requestUrl.origin)
+          );
+        }
+        
+        return NextResponse.redirect(
+          new URL('/login?error=auth-failed', requestUrl.origin)
+        );
+      }
 
-    // Get the new session
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    // Set the session cookie securely
-    if (session) {
-      cookieStore.set('supabase-auth-token', session.access_token, {
-        path: '/',
-        maxAge: session.expires_in,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production'
-      });
-    }
+      // Get the new session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Set the session cookie securely
+      if (session) {
+        cookieStore.set('supabase-auth-token', session.access_token, {
+          path: '/',
+          maxAge: session.expires_in,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production'
+        });
+      }
 
-    // Redirect to the next page if provided, otherwise go to dashboard
-    if (next) {
-      console.log('AuthCallback: Redirecting to:', next);
-      return NextResponse.redirect(new URL(next, requestUrl.origin));
-    }
+      // Handle account linking success differently
+      if (linking) {
+        return NextResponse.redirect(
+          new URL('/profile?linked=success', requestUrl.origin)
+        );
+      }
 
-    console.log('AuthCallback: Success, redirecting to dashboard');
-    return NextResponse.redirect(new URL('/dashboard', requestUrl.origin));
+      // Redirect to the next page if provided, otherwise go to dashboard
+      if (next) {
+        console.log('AuthCallback: Redirecting to:', next);
+        return NextResponse.redirect(new URL(next, requestUrl.origin));
+      }
+
+      console.log('AuthCallback: Success, redirecting to dashboard');
+      return NextResponse.redirect(new URL('/dashboard', requestUrl.origin));
+    } catch (err) {
+      console.error('Authentication error:', err);
+      return NextResponse.redirect(
+        new URL('/login?error=unknown', requestUrl.origin)
+      );
+    }
   }
 
   console.log('AuthCallback: No code present, redirecting to login');
