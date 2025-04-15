@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -146,7 +145,6 @@ export function LoginForm({
           <ForgotPasswordModal 
             isOpen={isForgotPasswordOpen}
             onClose={() => setIsForgotPasswordOpen(false)}
-            email={email}
           />
 
           <Button 
