@@ -1,14 +1,53 @@
+// app/layout.tsx
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from '@/components/ClientProviders';
+import type { Metadata } from "next";
 
 const geist = Geist({ subsets: ['latin'] });
 
-/**
- * Root layout is now a server component (no 'use client' directive)
- * This allows Next.js to pre-render the basic HTML structure
- * while delegating client-specific logic to ClientProviders
- */
+export const metadata: Metadata = {
+  title: {
+    template: "%s | Detective Cases",
+    default: "Detective Cases - Solve Mysteries Online"
+  },
+  description: "Explore and solve interactive detective cases. Purchase mysteries, analyze evidence, and become the detective in immersive online investigations.",
+  keywords: ["detective", "mystery", "cases", "online detective", "solve mysteries"],
+  authors: [{ name: "Detective Cases Team" }],
+  creator: "Detective Cases",
+  publisher: "Detective Cases",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  openGraph: {
+    title: "Detective Cases - Solve Mysteries Online",
+    description: "Explore and solve interactive detective cases. Purchase mysteries, analyze evidence, and become the detective in immersive online investigations.",
+    url: "/",
+    siteName: "Detective Cases",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Detective Cases - Solve Mysteries Online",
+    description: "Explore and solve interactive detective cases. Purchase mysteries, analyze evidence, and become the detective in immersive online investigations.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+      "max-snippet": -1,
+    },
+  },
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
