@@ -1,8 +1,6 @@
 "use client";
 
 import { useAuth } from '@/contexts/AuthContext';
-import { PricingSection } from '@/components/PricingSection';
-import { useTrialStatus } from '@/hooks/useTrialStatus';
 import { TypewriterEffect } from '@/components/TypewriterEffect';
 import { FaReddit } from 'react-icons/fa';
 import { 
@@ -87,11 +85,11 @@ const workflowSections = [
   {
     id: "payments",
     title: "Payments",
-    description: "Seamless payment integration with Stripe",
+    description: "Seamless payment integration with PayPal",
     bgClass: "bg-background",
     metrics: [
       { label: "Integration", value: "1-Click" },
-      { label: "Providers", value: "Stripe" },
+      { label: "Providers", value: "PayPal" },
       { label: "Setup Time", value: "5min" }
     ]
   },
@@ -116,12 +114,6 @@ const workflowSections = [
       { label: "Components", value: "50+" },
       { label: "TypeScript", value: "100%" }
     ]
-  },
-  {
-    id: "pricing",
-    title: "Pricing",
-    description: "Simple, transparent pricing for your needs",
-    bgClass: "bg-muted"
   }
 ];
 
@@ -164,7 +156,7 @@ const featureCards = [
   },
   {
     title: "Payments",
-    description: "Stripe subscription management",
+    description: "PayPal integration",
     icon: <CreditCard className="h-6 w-6 text-primary" />,
     bgGradient: "from-green-500/10 to-emerald-500/10"
   },
@@ -178,7 +170,6 @@ const featureCards = [
 
 export default function LandingPage() {
   const { user } = useAuth();
-  const { isInTrial } = useTrialStatus();
   const [activeSection, setActiveSection] = useState("overview");
   const sectionProgressValues = useSectionProgressValues(workflowSections.length);
   const { theme } = useTheme();
@@ -244,7 +235,7 @@ export default function LandingPage() {
             {/* Header Content */}
             <div className="text-center">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground">
-                <span className="block">Next.js + Stripe + Supabase</span>
+                <span className="block">Next.js + PayPal + Supabase</span>
                 <span className="block text-primary">Production-Ready Template</span>
               </h1>
               <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
@@ -265,7 +256,7 @@ export default function LandingPage() {
                   onClick={() => router.push('/dashboard')} 
                   className="px-8 py-3 bg-card hover:bg-muted text-primary border-2 border-primary rounded-lg shadow-lg hover:shadow-xl transition-all"
                 >
-                  Start Free Trial
+                  Get Started
                 </button>
               </div>
             </div>
@@ -361,9 +352,6 @@ export const DevLife = () => {
                 ))}
               </div>
             )}
-
-            {/* Pricing Section */}
-            {section.id === "pricing" && <PricingSection />}
           </div>
         </motion.section>
       ))}
@@ -404,7 +392,7 @@ export const DevLife = () => {
                   onClick={() => router.push('/dashboard')}
                   className="px-8 py-3 bg-card hover:bg-muted text-primary border-2 border-primary rounded-lg shadow-lg hover:shadow-xl transition-all"
                 >
-                  Start Free Trial
+                  Get Started
                 </motion.button>
               </div>
             </div>

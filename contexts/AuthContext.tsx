@@ -1,5 +1,3 @@
-// Modified AuthContext.tsx - Keep all auth code, remove subscription checks
-
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -46,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(true);
         console.log("AuthContext - Starting Try in InitializeAuth!");
 
-        // Get initial session
+        // First, get initial session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error || !mounted) {
@@ -173,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         redirectTo: `${window.location.origin}/update-password`
       });
       if (error) throw error;
-    },
+    }
   };
 
   return (
