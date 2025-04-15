@@ -1,4 +1,3 @@
-// app/cases/[id]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,7 +6,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getCaseById } from '@/lib/detective-cases';
 import { useCaseAccess } from '@/hooks/useCaseAccess';
 import { PayPalCheckout } from '@/components/PayPalCheckout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -28,7 +33,7 @@ export default function CaseDetailPage() {
       const timer = setTimeout(() => {
         window.location.reload();
       }, 2000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [paymentSuccess]);
@@ -38,9 +43,7 @@ export default function CaseDetailPage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Case Not Found</h1>
-          <Button onClick={() => router.push('/cases')}>
-            Back to Cases
-          </Button>
+          <Button onClick={() => router.push('/cases')}>Back to Cases</Button>
         </div>
       </div>
     );
@@ -49,23 +52,25 @@ export default function CaseDetailPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Button 
+        <Button
           onClick={() => router.push('/cases')}
           variant="outline"
           className="mb-6"
         >
           ← Back to Cases
         </Button>
-        
+
         <Card>
           <CardHeader>
             <div className="flex justify-between items-start">
               <CardTitle className="text-2xl">{detectiveCase.title}</CardTitle>
-              <Badge 
+              <Badge
                 variant={
-                  detectiveCase.difficulty === 'easy' ? 'default' : 
-                  detectiveCase.difficulty === 'medium' ? 'secondary' : 
-                  'destructive'
+                  detectiveCase.difficulty === 'easy'
+                    ? 'default'
+                    : detectiveCase.difficulty === 'medium'
+                    ? 'secondary'
+                    : 'destructive'
                 }
               >
                 {detectiveCase.difficulty}
@@ -75,13 +80,15 @@ export default function CaseDetailPage() {
               Price: ${detectiveCase.price.toFixed(2)} USD
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             <div>
               <h3 className="text-lg font-medium mb-2">Case Overview</h3>
-              <p className="text-muted-foreground">{detectiveCase.description}</p>
+              <p className="text-muted-foreground">
+                {detectiveCase.description}
+              </p>
             </div>
-            
+
             {isLoading ? (
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -93,15 +100,18 @@ export default function CaseDetailPage() {
                     You have access to this case!
                   </AlertDescription>
                 </Alert>
-                
+
                 <div className="p-6 border border-border rounded-lg">
                   <h3 className="text-lg font-medium mb-4">Case Details</h3>
                   <p className="text-muted-foreground mb-4">
-                    Here you would display the full case details that are only available to users who have purchased the case.
+                    Here you would display the full case details that are only
+                    available to users who have purchased the case.
                   </p>
                   <div className="p-4 bg-muted rounded-lg">
                     <p className="font-medium">Case Evidence #1</p>
-                    <p className="text-sm text-muted-foreground">First piece of evidence...</p>
+                    <p className="text-sm text-muted-foreground">
+                      First piece of evidence...
+                    </p>
                   </div>
                 </div>
               </>
@@ -114,34 +124,47 @@ export default function CaseDetailPage() {
             ) : (
               <div className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-center font-medium">Purchase this case to view its contents</p>
+                  <p className="text-center font-medium">
+                    Purchase this case to view its contents
+                  </p>
                 </div>
-                
+
                 {error && (
                   <Alert variant="destructive">
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
-                
+
                 <div className="mt-4">
                   {user ? (
                     <ErrorBoundary
-                      fallbackRender={({ error }) => (
+                      fallbackRender={() => (
                         <div className="p-4 border border-destructive rounded-lg">
-                          <p className="text-destructive">Payment system temporarily unavailable.</p>
-                          <p className="text-sm text-muted-foreground mt-2">Please try again later.</p>
+                          <p className="text-destructive">
+                            Payment system temporarily unavailable.
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Please try again later.
+                          </p>
                         </div>
                       )}
                     >
-                      <PayPalCheckout 
+                      <PayPalCheckout
                         detectiveCase={detectiveCase}
                         onSuccess={() => setPaymentSuccess(true)}
-                        onError={(err) => console.error("Payment failed:", err)}
+                        onError={(err) =>
+                          console.error('Payment failed:', err)
+                        }
                       />
                     </ErrorBoundary>
                   ) : (
-                    <Button 
-                      onClick={() => router.push('/login?redirect=' + encodeURIComponent(`/cases/${caseId}`))}
+                    <Button
+                      onClick={() =>
+                        router.push(
+                          '/login?redirect=' +
+                            encodeURIComponent(`/cases/${caseId}`)
+                        )
+                      }
                       className="w-full"
                     >
                       Login to Purchase
