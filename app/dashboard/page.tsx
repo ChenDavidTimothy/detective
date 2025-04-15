@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { supabase } from '@/utils/supabase';
+import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useTrialStatus } from '@/hooks/useTrialStatus';
 import { motion } from 'framer-motion';
 import { 
   BarChart3, 
@@ -17,8 +14,6 @@ import {
   TrendingUp,
   Activity
 } from 'lucide-react';
-
-const AUTH_TIMEOUT = 15000; // 15 seconds
 
 // Dashboard metrics data
 const dashboardMetrics = [
@@ -81,108 +76,14 @@ const recentActivity = [
 ];
 
 export default function Dashboard() {
-  const { user, isSubscriber, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
-  const { subscription, isLoading: isSubLoading, fetchSubscription } = useSubscription();
-  const [hasCheckedSubscription, setHasCheckedSubscription] = useState(false);
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
-  const { isInTrial, isLoading: isTrialLoading } = useTrialStatus();
-  const [authTimeout, setAuthTimeout] = useState(false);
-
-  // First check - Subscription and trial check
-  useEffect(() => {
-    if (isSubLoading || isTrialLoading) return;
-    
-    const hasValidSubscription = ['active', 'trialing'].includes(subscription?.status || '');
-    
-    console.log('Access check isInTrial:', {
-      hasSubscription: !!subscription,
-      status: subscription?.status,
-      isInTrial: isInTrial,
-      validUntil: subscription?.current_period_end
-    });
-
-    // Only redirect if there's no valid subscription AND no valid trial
-    if (!hasValidSubscription && !isInTrial) {
-      console.log('No valid subscription or trial, redirecting');
-      router.replace('/profile');
-    }
-  }, [subscription, isSubLoading, isTrialLoading, router, isInTrial]);
-
-  // Second check - Auth check
-  useEffect(() => {
-    if (isAuthLoading || isTrialLoading) return;
-
-    console.log('Access check:', {
-      isSubscriber,
-      hasCheckedSubscription,
-      isInTrial: isInTrial,
-      authLoading: isAuthLoading,
-    });
-
-    if (!hasCheckedSubscription) {
-      setHasCheckedSubscription(true);
-      
-      // Allow access for both subscribers and trial users
-      if (!user || (!isSubscriber && !isInTrial && !isAuthLoading)) {
-        console.log('No valid subscription or trial, redirecting');
-        router.replace('/profile');
-      }
-    }
-  }, [isSubscriber, isAuthLoading, hasCheckedSubscription, router, user, subscription, isTrialLoading, isInTrial]);
-
-  // Add refresh effect
-  useEffect(() => {
-    const refreshSubscription = async () => {
-      await fetchSubscription();
-      setHasCheckedSubscription(true);
-    };
-    
-    if (user?.id) {
-      refreshSubscription();
-    }
-  }, [user?.id, fetchSubscription]);
-
-  useEffect(() => {
-    if (user?.id) {
-      // Check if user has completed onboarding
-      const checkOnboarding = async () => {
-        const { data } = await supabase
-          .from('user_preferences')
-          .select('has_completed_onboarding')
-          .eq('user_id', user.id)
-          .single();
-        
-        setHasCompletedOnboarding(!!data?.has_completed_onboarding);
-        console.log('hasCompletedOnboarding: ', hasCompletedOnboarding)
-      };
-      
-      checkOnboarding();
-    }
-  }, [user?.id, hasCompletedOnboarding]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!user && (isAuthLoading || isTrialLoading)) {
-        setAuthTimeout(true);
-      }
-    }, AUTH_TIMEOUT);
-    
-    return () => clearTimeout(timer);
-  }, [user, isAuthLoading, isTrialLoading]);
-
-  // Update the loading check
-  if (!user && (isAuthLoading || isTrialLoading) && !hasCheckedSubscription) {
+  
+  // Simple auth check - user gets redirected by ProtectedRoute if not logged in
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4 mx-auto"></div>
-          <p className="text-foreground">
-            {authTimeout ? 
-              "Taking longer than usual? Try refreshing the page 😊." :
-              "Verifying access..."}
-          </p>
-        </div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -198,7 +99,7 @@ export default function Dashboard() {
             </h1>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-muted-foreground">
-                {isInTrial ? "Trial Period" : "Premium Plan"}
+                Welcome back!
               </span>
             </div>
           </div>

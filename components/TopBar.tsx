@@ -4,9 +4,6 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useTrialStatus } from '@/hooks/useTrialStatus';
-import { BuyMeCoffee } from './BuyMeCoffee';
 import { ThemeToggle } from './ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -16,8 +13,6 @@ export default function TopBar() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { subscription, isLoading: isLoadingSubscription } = useSubscription();
-  const { isInTrial } = useTrialStatus();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -41,51 +36,31 @@ export default function TopBar() {
           <span className="font-sans">NextTemp</span>
         </Link>
 
-        <Link href="/cases" className="text-md sm:text-lg font-medium flex items-center gap-2 hover:opacity-80 transition-opacity">
-          Detective Cases
-        </Link>
-
         <div className="flex items-center gap-4">
           {/* Theme toggle */}
           <ThemeToggle />
           
+          {/* Added Case Link */}
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/cases">Detective Cases</Link>
+          </Button>
+          
           {!user ? (
             <>
-              <BuyMeCoffee />
               <Button asChild size="sm">
                 <Link href="/login">Sign in</Link>
               </Button>
             </>
           ) : (
             <>
-              {!isLoadingSubscription && (!isInTrial) && (
-                !subscription || 
-                subscription.status === 'canceled' || 
-                (subscription.cancel_at_period_end && new Date(subscription.current_period_end) > new Date())
-              ) && (
-                <Button 
-                  onClick={() => router.push('/profile')}
-                  variant="default"
-                  size="sm"
-                  className="hidden sm:flex"
-                >
-                  View Subscription
-                </Button>
-              )}
-              <BuyMeCoffee />
-
-              {!isLoadingSubscription && (
-                subscription || isInTrial
-              ) && pathname !== '/dashboard' && (
-                <Button
-                  onClick={() => router.push('/dashboard')}
-                  variant="default"
-                  size="sm"
-                  className="hidden sm:flex"
-                >
-                  {isInTrial ? "Start Free Trial" : "Start Building"}
-                </Button>
-              )}
+              <Button
+                onClick={() => router.push('/dashboard')}
+                variant="default"
+                size="sm"
+                className="hidden sm:flex"
+              >
+                Dashboard
+              </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -99,7 +74,7 @@ export default function TopBar() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => router.push('/profile')}>
-                    Profile & Subscription
+                    Profile
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     onClick={handleLogout} 
