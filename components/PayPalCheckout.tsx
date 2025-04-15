@@ -1,4 +1,4 @@
-// Modified PayPalCheckout.tsx
+// PayPalCheckout.tsx
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -6,10 +6,69 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DetectiveCase } from '@/lib/detective-cases';
 import { supabase } from '@/utils/supabase';
 
+// Define PayPal SDK TypeScript interfaces
+// This extends the Window interface to include the PayPal SDK
+declare global {
+  interface Window {
+    paypal?: PayPalNamespace;
+  }
+}
+
+// PayPal SDK types
+interface PayPalNamespace {
+  Buttons: (config: PayPalButtonsConfig) => PayPalButtonsComponent;
+}
+
+interface PayPalButtonsComponent {
+  render: (container: HTMLElement) => void;
+}
+
+interface PayPalButtonsConfig {
+  style: {
+    shape: string;
+    color: string;
+    layout: string;
+    label: string;
+  };
+  createOrder: (data: unknown, actions: PayPalOrderActions) => Promise<string>;
+  onApprove: (data: PayPalApproveData, actions: PayPalOrderActions) => Promise<void>;
+  onError: (error: Error) => void;
+}
+
+interface PayPalOrderActions {
+  order: {
+    create: (orderData: PayPalOrderData) => Promise<string>;
+    capture: () => Promise<PayPalCaptureDetails>;
+  };
+}
+
+interface PayPalOrderData {
+  purchase_units: Array<{
+    description: string;
+    amount: {
+      value: string;
+      currency_code: string;
+    };
+  }>;
+  application_context?: {
+    shipping_preference: string;
+  };
+}
+
+interface PayPalApproveData {
+  orderID: string;
+}
+
+interface PayPalCaptureDetails {
+  id: string;
+  status: string;
+  [key: string]: unknown;
+}
+
 interface PayPalCheckoutProps {
   detectiveCase: DetectiveCase;
-  onSuccess?: (details: any) => void;
-  onError?: (error: any) => void;
+  onSuccess?: (details: PayPalCaptureDetails) => void;
+  onError?: (error: Error) => void;
 }
 
 export function PayPalCheckout({ detectiveCase, onSuccess, onError }: PayPalCheckoutProps) {
@@ -32,7 +91,9 @@ export function PayPalCheckout({ detectiveCase, onSuccess, onError }: PayPalChec
     // Add error handling for script loading
     script.onerror = () => {
       console.error('PayPal script failed to load');
-      onError && onError(new Error('PayPal script failed to load'));
+      if (onError) {
+        onError(new Error('PayPal script failed to load'));
+      }
     };
 
     script.onload = () => {
@@ -45,7 +106,7 @@ export function PayPalCheckout({ detectiveCase, onSuccess, onError }: PayPalChec
       paypalButtonRef.current.innerHTML = '';
 
       try {
-        // @ts-ignore - PayPal types not defined
+        // Using ts-expect-error because the PayPal SDK types are complex and we're providing our own simplified version
         window.paypal.Buttons({
           style: {
             shape: 'rect',
@@ -54,7 +115,7 @@ export function PayPalCheckout({ detectiveCase, onSuccess, onError }: PayPalChec
             label: 'pay',
           },
           // Set up the transaction
-          createOrder: (data: any, actions: any) => {
+          createOrder: (_data: unknown, actions: PayPalOrderActions) => {
             return actions.order.create({
               purchase_units: [{
                 description: `Detective Case: ${detectiveCase.title}`,
@@ -69,7 +130,7 @@ export function PayPalCheckout({ detectiveCase, onSuccess, onError }: PayPalChec
             });
           },
           // Finalize the transaction
-          onApprove: async (data: any, actions: any) => {
+          onApprove: async (data: PayPalApproveData, actions: PayPalOrderActions) => {
             try {
               const details = await actions.order.capture();
               console.log('Payment successful', details);
@@ -89,25 +150,35 @@ export function PayPalCheckout({ detectiveCase, onSuccess, onError }: PayPalChec
                   
                 if (error) {
                   console.error('Error recording purchase:', error);
-                  onError && onError(error);
+                  if (onError) {
+                    onError(error);
+                  }
                   return;
                 }
               }
               
-              onSuccess && onSuccess(details);
+              if (onSuccess) {
+                onSuccess(details);
+              }
             } catch (err) {
               console.error('Payment error during capture:', err);
-              onError && onError(err);
+              if (onError && err instanceof Error) {
+                onError(err);
+              }
             }
           },
-          onError: (err: any) => {
+          onError: (err: Error) => {
             console.error('PayPal error:', err);
-            onError && onError(err);
+            if (onError) {
+              onError(err);
+            }
           }
         }).render(paypalButtonRef.current);
       } catch (err) {
         console.error('Error setting up PayPal buttons:', err);
-        onError && onError(err);
+        if (onError && err instanceof Error) {
+          onError(err);
+        }
       }
     };
 
