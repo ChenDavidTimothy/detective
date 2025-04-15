@@ -51,6 +51,8 @@ CREATE TABLE public.user_purchases (
   payment_id TEXT NOT NULL,
   amount NUMERIC(10, 2) NOT NULL,
   purchase_date TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+  verified_at TIMESTAMPTZ, -- <-- Added for payment verification
+  notes TEXT,              -- <-- Added for fallback/admin notes
   CONSTRAINT user_purchases_user_case_unique UNIQUE(user_id, case_id)
 );
 
