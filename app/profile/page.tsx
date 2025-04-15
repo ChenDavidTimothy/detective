@@ -3,13 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import Link from 'next/link';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Suspense } from 'react';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useCaseAccess } from '@/hooks/useCaseAccess'; // Import our new hook
 import { DETECTIVE_CASES } from '@/lib/detective-cases';
 import { supabase } from '@/utils/supabase';
 
@@ -131,7 +129,7 @@ function ProfileContent() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">You haven't purchased any detective cases yet.</p>
+                  <p className="text-muted-foreground mb-4">You haven&apos;t purchased any detective cases yet.</p>
                   <Button 
                     onClick={() => router.push('/cases')}
                     variant="default"
