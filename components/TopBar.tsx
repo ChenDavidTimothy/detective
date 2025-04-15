@@ -41,6 +41,10 @@ export default function TopBar() {
           <span className="font-sans">NextTemp</span>
         </Link>
 
+        <Link href="/cases" className="text-md sm:text-lg font-medium flex items-center gap-2 hover:opacity-80 transition-opacity">
+          Detective Cases
+        </Link>
+
         <div className="flex items-center gap-4">
           {/* Theme toggle */}
           <ThemeToggle />
