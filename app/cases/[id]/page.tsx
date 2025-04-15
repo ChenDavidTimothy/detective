@@ -1,4 +1,4 @@
-// Create file: /app/cases/[id]/page.tsx
+// app/cases/[id]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,10 +7,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getCaseById } from '@/lib/detective-cases';
 import { useCaseAccess } from '@/hooks/useCaseAccess';
 import { PayPalCheckout } from '@/components/PayPalCheckout';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ErrorBoundary } from 'react-error-boundary';
 
 export default function CaseDetailPage() {
   const params = useParams();
@@ -124,11 +125,20 @@ export default function CaseDetailPage() {
                 
                 <div className="mt-4">
                   {user ? (
-                    <PayPalCheckout 
-                      detectiveCase={detectiveCase}
-                      onSuccess={() => setPaymentSuccess(true)}
-                      onError={(err) => console.error("Payment failed:", err)}
-                    />
+                    <ErrorBoundary
+                      fallbackRender={({ error }) => (
+                        <div className="p-4 border border-destructive rounded-lg">
+                          <p className="text-destructive">Payment system temporarily unavailable.</p>
+                          <p className="text-sm text-muted-foreground mt-2">Please try again later.</p>
+                        </div>
+                      )}
+                    >
+                      <PayPalCheckout 
+                        detectiveCase={detectiveCase}
+                        onSuccess={() => setPaymentSuccess(true)}
+                        onError={(err) => console.error("Payment failed:", err)}
+                      />
+                    </ErrorBoundary>
                   ) : (
                     <Button 
                       onClick={() => router.push('/login?redirect=' + encodeURIComponent(`/cases/${caseId}`))}
