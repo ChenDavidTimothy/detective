@@ -28,77 +28,34 @@ export function LoginForm({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
-  const { checkEmailExists } = useAuth();
-  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [localError, setLocalError] = useState<NormalizedAuthError | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
-    
-    if (isSignUp) {
-      // For signup, check if email exists first
-      setIsCheckingEmail(true);
-      try {
-        const { exists, provider } = await checkEmailExists(email);
-        if (exists) {
-          setLocalError({
-            type: 'email-already-exists',
-            message: provider === 'google'
-              ? "This email is already used with Google Sign In. Please use Google to sign in."
-              : "This email is already registered. Please sign in instead."
-          });
-          setIsCheckingEmail(false);
-          return;
-        }
-      } catch (error) {
-        console.error("Error checking email:", error);
-      } finally {
-        setIsCheckingEmail(false);
-      }
-    }
-    
     await onSubmit(email, password, isSignUp);
   };
 
   // Function to render error message with appropriate action button
   const renderError = () => {
-    // Use local error or passed error
     const displayError = localError || (error ? (typeof error === 'string' 
       ? normalizeAuthError(error) 
       : error) : null);
-    
     if (!displayError) return null;
-    
     return (
       <Alert variant="destructive" className="mb-4">
         <AlertDescription className="flex flex-col gap-2">
           <span>{displayError.message}</span>
-          
-          {displayError.type === 'email-already-exists' && (
+          {displayError.type === 'email-already-exists' && displayError.message.includes('Google') && (
             <div className="flex justify-end">
-              {displayError.message.includes('Google') ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onGoogleSignIn}
-                  size="sm"
-                >
-                  Sign in with Google
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsSignUp(false);
-                    setLocalError(null);
-                  }}
-                  size="sm"
-                >
-                  Go to Sign In
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsForgotPasswordOpen(true)}
+                size="sm"
+              >
+                Forgot password
+              </Button>
             </div>
           )}
         </AlertDescription>
@@ -124,7 +81,7 @@ export function LoginForm({
           variant="outline"
           className="w-full"
           type="button"
-          disabled={isLoading || isCheckingEmail}
+          disabled={isLoading}
         >
           <Image
             src="/Google-Logo.png"
@@ -142,7 +99,6 @@ export function LoginForm({
           <Separator className="w-full flex-1 h-px bg-muted-foreground" />
         </div>
 
-
         <div className="text-center">
           <CardTitle className="text-2xl font-bold">
             {isSignUp ? 'Create an account' : 'Are you an Email User?'}
@@ -156,20 +112,20 @@ export function LoginForm({
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                setLocalError(null); // Clear error when email changes
+                setLocalError(null);
               }}
               placeholder="Email address"
-              disabled={isLoading || isCheckingEmail}
+              disabled={isLoading}
             />
             <Input
               type="password"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
-                setLocalError(null); // Clear error when password changes
+                setLocalError(null);
               }}
               placeholder="Password"
-              disabled={isLoading || isCheckingEmail}
+              disabled={isLoading}
             />
           </div>
 
@@ -180,7 +136,7 @@ export function LoginForm({
                 variant="link"
                 onClick={() => setIsForgotPasswordOpen(true)}
                 className="text-sm p-0 h-auto"
-                disabled={isLoading || isCheckingEmail}
+                disabled={isLoading}
               >
                 Forgot your password?
               </Button>
@@ -190,19 +146,15 @@ export function LoginForm({
           <ForgotPasswordModal 
             isOpen={isForgotPasswordOpen}
             onClose={() => setIsForgotPasswordOpen(false)}
+            email={email}
           />
 
           <Button 
             type="submit" 
-            disabled={isLoading || isCheckingEmail || !email || !password}
+            disabled={isLoading || !email || !password}
             className="w-full"
           >
-            {isCheckingEmail ? (
-              <span className="flex items-center">
-                <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
-                Checking...
-              </span>
-            ) : isLoading ? (
+            {isLoading ? (
               <span className="flex items-center">
                 <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
                 {isSignUp ? 'Signing up...' : 'Signing in...'}
@@ -218,10 +170,10 @@ export function LoginForm({
               variant="link"
               onClick={() => {
                 setIsSignUp(!isSignUp);
-                setLocalError(null); // Clear errors when switching modes
+                setLocalError(null);
               }}
               className="text-sm p-0 h-auto"
-              disabled={isLoading || isCheckingEmail}
+              disabled={isLoading}
             >
               {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
             </Button>

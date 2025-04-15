@@ -1,44 +1,29 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/utils/supabase-admin';
-import { withCors } from '@/utils/cors';
+import { createClient } from '@supabase/supabase-js';
 
-export const POST = withCors(async function POST(request: Request) {
+export const POST = async (request: Request) => {
   try {
     const { email } = await request.json();
-    
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
-    }
-
-    // Use admin API to search for existing users
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers();
-    
-    if (error) {
-      throw error;
-    }
-    
-    // Find user by email
-    const existingUser = data.users.find(user => 
-      user.email?.toLowerCase() === email.toLowerCase()
+    const adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-    
-    if (!existingUser) {
+    const { data, error } = await adminClient.auth.admin.listUsers();
+    if (error) throw error;
+
+    const user = data.users.find(
+      user => user.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (!user) {
       return NextResponse.json({ exists: false });
     }
-    
-    // Get the authentication provider
-    const provider = existingUser.app_metadata?.provider || 'email';
-    
-    return NextResponse.json({ 
-      exists: true, 
-      provider,
-      email_confirmed: !!existingUser.email_confirmed_at 
-    });
+
+    // Supabase stores providers in app_metadata
+    const provider = user.app_metadata?.provider || 'email';
+
+    return NextResponse.json({ exists: true, provider });
   } catch (error) {
-    console.error('Error checking email:', error);
-    return NextResponse.json(
-      { error: 'Failed to check email', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ exists: false });
   }
-});
+};

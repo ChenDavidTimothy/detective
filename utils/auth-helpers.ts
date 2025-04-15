@@ -1,4 +1,4 @@
-export type AuthErrorType = 
+export type AuthErrorType =
   | 'email-already-exists'
   | 'invalid-credentials'
   | 'weak-password'
@@ -16,21 +16,21 @@ export interface NormalizedAuthError {
  */
 export function normalizeAuthError(error: unknown): NormalizedAuthError {
   const message = error instanceof Error ? error.message : String(error);
-  
+
   // Check for email already exists errors
   if (
-    message.includes('already registered') || 
+    message.includes('already registered') ||
     message.includes('already in use') ||
     message.includes('User already exists') ||
     message.includes('Email address is already registered')
   ) {
     return {
       type: 'email-already-exists',
-      message: "This email is already associated with an account. Please sign in instead.",
+      message: "Email already exists. Please sign in instead.",
       originalError: error
     };
   }
-  
+
   // Invalid credentials
   if (
     message.includes('Invalid login credentials') ||
@@ -42,7 +42,7 @@ export function normalizeAuthError(error: unknown): NormalizedAuthError {
       originalError: error
     };
   }
-  
+
   // Weak password
   if (message.includes('Password should be')) {
     return {
@@ -51,10 +51,10 @@ export function normalizeAuthError(error: unknown): NormalizedAuthError {
       originalError: error
     };
   }
-  
+
   // Expired token
   if (
-    message.includes('Token expired') || 
+    message.includes('Token expired') ||
     message.includes('JWT expired')
   ) {
     return {
@@ -63,7 +63,7 @@ export function normalizeAuthError(error: unknown): NormalizedAuthError {
       originalError: error
     };
   }
-  
+
   // Default case for unknown errors
   return {
     type: 'unknown',

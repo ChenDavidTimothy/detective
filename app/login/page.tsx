@@ -2,15 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { LoginForm } from '@/components/LoginForm';
 import { normalizeAuthError, type NormalizedAuthError } from '@/utils/auth-helpers';
 
 export default function LoginPage() {
   const { user, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const errorParam = searchParams.get('error');
   const [error, setError] = useState<NormalizedAuthError | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (errorParam === 'unknown') {
+      setError({
+        type: 'unknown',
+        message: "An error occurred during authentication. Please try again."
+      });
+    }
+  }, [errorParam]);
 
   useEffect(() => {
     if (user) {
@@ -32,12 +43,10 @@ export default function LoginPage() {
           setIsLoading(false);
           return;
         }
-        
         if (data?.user && !data.user.email_confirmed_at) {
           router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
           return;
         }
-        
         router.replace('/dashboard');
       } else {
         try {
@@ -45,7 +54,7 @@ export default function LoginPage() {
           router.replace('/dashboard');
         } catch (error) {
           setError(
-            error as NormalizedAuthError || 
+            error as NormalizedAuthError ||
             normalizeAuthError('Authentication failed')
           );
           setIsLoading(false);
@@ -61,7 +70,6 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
       await signInWithGoogle();
-      // No need to redirect - OAuth will handle that
     } catch (error) {
       setError(normalizeAuthError(error));
       setIsLoading(false);
