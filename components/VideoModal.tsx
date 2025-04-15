@@ -1,4 +1,4 @@
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -12,6 +12,8 @@ export function VideoModal({ isOpen, onClose, videoId }: VideoModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-4xl border-none bg-transparent shadow-none p-0">
+        {/* Visually hidden title for accessibility */}
+        <DialogTitle className="sr-only">Demo Video</DialogTitle>
         <div className="relative w-full">
           {/* Close button */}
           <Button
