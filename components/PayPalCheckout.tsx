@@ -23,8 +23,17 @@ export function PayPalCheckout({
 }: PayPalCheckoutProps) {
   const { user } = useAuth();
   const [buttonError, setButtonError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false); // <-- Loading state
 
-  if (!user) return <div>Please login to make a purchase</div>;
+  if (!user) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Please login to make a purchase
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   if (buttonError) {
     return (
@@ -49,6 +58,11 @@ export function PayPalCheckout({
         <div className="w-full min-h-[150px]">
           <PayPalButtons
             style={{ layout: "vertical", shape: "rect" }}
+            disabled={isLoading} // <-- Disable button while loading
+            forceReRender={[
+              detectiveCase.price,
+              isLoading,
+            ]} // <-- Ensures button updates if price/loading changes
             createOrder={(_data: unknown, actions: any) => {
               return actions.order.create({
                 purchase_units: [{
@@ -64,6 +78,7 @@ export function PayPalCheckout({
               });
             }}
             onApprove={async (_data: unknown, actions: any) => {
+              setIsLoading(true); // <-- Start loading
               try {
                 const details = await actions.order.capture();
                 if (user) {
@@ -80,6 +95,7 @@ export function PayPalCheckout({
                     );
                   if (error && onError) {
                     onError(new Error(error.message || 'Failed to record purchase'));
+                    setIsLoading(false); // <-- Stop loading on error
                     return;
                   }
                 }
@@ -93,10 +109,13 @@ export function PayPalCheckout({
                       : new Error('Payment capture failed')
                   );
                 }
+              } finally {
+                setIsLoading(false); // <-- Always stop loading
               }
             }}
             onError={(err: unknown) => {
               setButtonError('Payment system error. Please try again.');
+              setIsLoading(false); // <-- Stop loading on error
               if (onError)
                 onError(
                   err instanceof Error
@@ -104,8 +123,16 @@ export function PayPalCheckout({
                     : new Error('PayPal error')
                 );
             }}
-            onCancel={() => console.log('Payment cancelled')}
+            onCancel={() => {
+              setIsLoading(false); // <-- Stop loading if cancelled
+              console.log('Payment cancelled');
+            }}
           />
+          {isLoading && (
+            <div className="mt-4 text-center text-sm text-muted-foreground">
+              Processing payment, please wait...
+            </div>
+          )}
         </div>
       </PayPalScriptProvider>
       <div className="text-sm text-muted-foreground mt-2 text-center">
