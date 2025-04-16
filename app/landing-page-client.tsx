@@ -1,6 +1,7 @@
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/utils/supabase/client';
 import { TypewriterEffect } from '@/components/TypewriterEffect';
 import { FaReddit } from 'react-icons/fa';
 import {
@@ -16,15 +17,16 @@ import {
 import { Lock, CreditCard, Moon } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Link as ScrollLink } from 'react-scroll';
 import { VideoModal } from '@/components/VideoModal';
 import { useTheme } from '@/contexts/ThemeContext';
+import { User } from '@supabase/supabase-js';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-// Update workflowSteps to be more generic
+// ... (workflowSteps, platforms, workflowSections, useSectionProgressValues, featureCards remain unchanged)
+
 const workflowSteps = [
   {
     title: 'Step One',
@@ -48,7 +50,6 @@ const workflowSteps = [
   },
 ];
 
-// Update platforms to be generic
 const platforms = [
   { name: 'Platform 1', icon: FaGithub },
   { name: 'Platform 2', icon: FaDiscord },
@@ -61,7 +62,6 @@ const platforms = [
   { name: 'Platform 9', icon: FaYoutube },
 ];
 
-// Update workflowSections to be generic with shadcn theming system
 const workflowSections = [
   {
     id: 'overview',
@@ -115,11 +115,9 @@ const workflowSections = [
   },
 ];
 
-// Custom Hook to create section progress values
 function useSectionProgressValues(numSections: number) {
   const { scrollYProgress } = useScroll();
 
-  // Create all transforms at once, at the top level
   const section1Progress = useTransform(
     scrollYProgress,
     [0 / numSections, 1 / numSections],
@@ -149,7 +147,6 @@ function useSectionProgressValues(numSections: number) {
   ];
 }
 
-// Feature cards data
 const featureCards = [
   {
     title: 'Authentication',
@@ -172,11 +169,12 @@ const featureCards = [
 ];
 
 export default function LandingPageClient() {
-  const { user } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('overview');
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const sectionProgressValues = useSectionProgressValues(workflowSections.length);
   const { theme } = useTheme();
-
   const router = useRouter();
 
   const [dashboardRef, inView] = useInView({
@@ -186,11 +184,33 @@ export default function LandingPageClient() {
 
   const { scrollYProgress } = useScroll();
 
-  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  // Supabase user fetch and auth state change
+  useEffect(() => {
+    const fetchUser = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
+      setIsLoading(false);
+    };
+
+    fetchUser();
+
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Enhanced Sticky Navigation */}
+      {/* Sticky Navigation */}
       <nav className="sticky top-0 z-50 bg-card/80 backdrop-blur-xs border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4 overflow-x-auto hide-scrollbar">
@@ -233,7 +253,7 @@ export default function LandingPageClient() {
         </div>
       </nav>
 
-      {/* Hero Section - Now acts as Overview */}
+      {/* Hero Section - Overview */}
       <div id="overview" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10" />
 
@@ -261,12 +281,24 @@ export default function LandingPageClient() {
                 >
                   Watch Demo
                 </motion.button>
-                <button
-                  onClick={() => router.push('/dashboard')}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() =>
+                    isLoading
+                      ? undefined
+                      : user
+                      ? router.push('/dashboard')
+                      : router.push('/login')
+                  }
                   className="px-8 py-3 bg-card hover:bg-muted text-primary border-2 border-primary rounded-lg shadow-lg hover:shadow-xl transition-all"
                 >
-                  Get Started
-                </button>
+                  {isLoading
+                    ? 'Loading...'
+                    : user
+                    ? 'Go to Dashboard'
+                    : 'Get Started'}
+                </motion.button>
               </div>
             </div>
 
@@ -404,10 +436,20 @@ export const DevLife = () => {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() =>
+                    isLoading
+                      ? undefined
+                      : user
+                      ? router.push('/dashboard')
+                      : router.push('/login')
+                  }
                   className="px-8 py-3 bg-card hover:bg-muted text-primary border-2 border-primary rounded-lg shadow-lg hover:shadow-xl transition-all"
                 >
-                  Get Started
+                  {isLoading
+                    ? 'Loading...'
+                    : user
+                    ? 'Go to Dashboard'
+                    : 'Get Started'}
                 </motion.button>
               </div>
             </div>

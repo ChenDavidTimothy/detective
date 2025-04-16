@@ -1,12 +1,12 @@
+// app/cases/[id]/case-detail-view.tsx
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
 import { DetectiveCase } from '@/lib/detective-cases';
-import { useCaseAccess } from '@/hooks/useCaseAccess';
 import { PayPalCheckout } from '@/components/PayPalCheckout';
 import { PaymentSuccessMessage } from '@/components/PaymentSuccessMessage';
+import { useCaseAccess } from '@/hooks/useCaseAccess';
 import {
   Card,
   CardContent,
@@ -22,14 +22,19 @@ import { ErrorBoundary } from 'react-error-boundary';
 type CaseDetailViewProps = {
   detectiveCase: DetectiveCase;
   caseId: string;
+  initialHasAccess: boolean;
+  userId?: string;
 };
 
-export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailViewProps) {
+export default function CaseDetailView({ 
+  detectiveCase, 
+  caseId, 
+  initialHasAccess,
+  userId
+}: CaseDetailViewProps) {
   const router = useRouter();
-  const { user } = useAuth();
-  const { hasAccess, isLoading, error, refresh } = useCaseAccess(caseId);
+  const { hasAccess, isLoading, error, refresh } = useCaseAccess(caseId, initialHasAccess);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
-  // Add a separate flag to prevent content flash
   const [isPaymentComplete, setIsPaymentComplete] = useState(false);
 
   // When payment is successful, show success and redirect
@@ -105,8 +110,7 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                 <div className="p-6 border border-border rounded-lg">
                   <h3 className="text-lg font-medium mb-4">Case Details</h3>
                   <p className="text-muted-foreground mb-4">
-                    Here you would display the full case details that are only
-                    available to users who have purchased the case.
+                    {detectiveCase.content || "Here you would display the full case details that are only available to users who have purchased the case."}
                   </p>
                   <div className="p-4 bg-muted rounded-lg">
                     <p className="font-medium">Case Evidence #1</p>
@@ -117,7 +121,6 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                 </div>
               </>
             ) : showSuccessMessage ? (
-              // Use the new component for success message
               <PaymentSuccessMessage
                 message="Thank you for your purchase. You now have access to this case."
                 redirectPath={`/cases/${caseId}`}
@@ -143,7 +146,7 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
                       <span>Processing payment...</span>
                     </div>
-                  ) : user ? (
+                  ) : userId ? (
                     <ErrorBoundary
                       fallbackRender={({ error, resetErrorBoundary }) => (
                         <div className="p-4 border border-destructive rounded-lg">
@@ -168,6 +171,7 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                     >
                       <PayPalCheckout
                         detectiveCase={detectiveCase}
+                        userId={userId}
                         onSuccess={handlePaymentSuccess}
                         onError={(err) => {
                           console.error('Payment failed:', err);
@@ -179,8 +183,7 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                     <Button
                       onClick={() =>
                         router.push(
-                          '/login?redirect=' +
-                            encodeURIComponent(`/cases/${caseId}`)
+                          `/login?returnTo=${encodeURIComponent(`/cases/${caseId}`)}`
                         )
                       }
                       className="w-full"

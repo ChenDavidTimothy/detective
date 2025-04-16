@@ -1,18 +1,44 @@
+// hooks/useCaseAccess.ts
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
 
-export function useCaseAccess(caseId: string) {
-  const { user } = useAuth();
-  const [hasAccess, setHasAccess] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+export function useCaseAccess(caseId: string, initialHasAccess = false) {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [hasAccess, setHasAccess] = useState<boolean>(initialHasAccess);
+  const [isLoading, setIsLoading] = useState<boolean>(!initialHasAccess);
   const [error, setError] = useState<string | null>(null);
 
-  // The checkAccess function is now memoized so it can be called from outside
-  const checkAccess = useCallback(async () => {
-    if (!user?.id || !caseId) {
+  useEffect(() => {
+    const fetchUserAndAccess = async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        
+        if (!data.user?.id) {
+          setIsLoading(false);
+          return;
+        }
+        
+        setUserId(data.user.id);
+        
+        if (!initialHasAccess) {
+          await checkAccess(data.user.id);
+        } else {
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error('Error fetching user:', err);
+        setIsLoading(false);
+      }
+    };
+    
+    fetchUserAndAccess();
+  }, [caseId, initialHasAccess]);
+
+  const checkAccess = useCallback(async (currentUserId: string) => {
+    if (!currentUserId || !caseId) {
       setHasAccess(false);
       setIsLoading(false);
       setError(null);
@@ -23,17 +49,16 @@ export function useCaseAccess(caseId: string) {
     setError(null);
 
     try {
-      // Create a fresh client for each check
       const supabase = createClient();
       
       const { data, error } = await supabase
         .from('user_purchases')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUserId)
         .eq('case_id', caseId)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {  // PGRST116 is "not found"
+      if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
@@ -45,12 +70,13 @@ export function useCaseAccess(caseId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, caseId]);
+  }, [caseId]);
 
-  useEffect(() => {
-    checkAccess();
-  }, [checkAccess]);
+  const refresh = useCallback(() => {
+    if (userId) {
+      checkAccess(userId);
+    }
+  }, [userId, checkAccess]);
 
-  // Expose the refresh function
-  return { hasAccess, isLoading, error, refresh: checkAccess };
+  return { hasAccess, isLoading, error, refresh };
 }

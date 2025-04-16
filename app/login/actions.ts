@@ -1,3 +1,4 @@
+// app/login/actions.ts
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -9,8 +10,9 @@ export async function login(formData: FormData) {
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const returnTo = formData.get('returnTo') as string || '/dashboard'
   
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   })
@@ -28,7 +30,7 @@ export async function login(formData: FormData) {
   }
 
   revalidatePath('/', 'layout')
-  return { success: true }
+  return { success: true, redirectTo: returnTo }
 }
 
 export async function signup(formData: FormData) {
@@ -36,13 +38,13 @@ export async function signup(formData: FormData) {
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const returnTo = formData.get('returnTo') as string || '/dashboard'
   
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { 
-      // Update to use the confirm path instead of callback
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm?next=/dashboard` 
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm?next=${encodeURIComponent(returnTo)}` 
     }
   })
 
@@ -52,20 +54,20 @@ export async function signup(formData: FormData) {
 
   // If email confirmation is required
   if (data?.user && !data.user.email_confirmed_at) {
-    redirect(`/verify-email?email=${encodeURIComponent(email)}`)
+    return { success: true, redirectTo: `/verify-email?email=${encodeURIComponent(email)}` }
   }
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  return { success: true, redirectTo: returnTo }
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(returnTo: string = '/dashboard') {
   const supabase = await createClient()
   
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/dashboard`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=${encodeURIComponent(returnTo)}`,
     }
   })
 

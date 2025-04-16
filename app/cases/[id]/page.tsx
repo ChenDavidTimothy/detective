@@ -2,10 +2,8 @@
 import type { Metadata } from "next";
 import { getCaseById, DETECTIVE_CASES } from "@/lib/detective-cases";
 import { notFound } from "next/navigation";
+import { createClient } from '@/utils/supabase/server';
 import { generateProductSchema } from "@/utils/structured-data";
-
-// Renamed component to avoid confusion between client/server
-// You'll need to create this component with your client-side code
 import CaseDetailView from "./case-detail-view";
 
 type Props = {
@@ -39,7 +37,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: [detectiveCase.imageUrl || '/images/default-case-og.png'],
     },
     alternates: {
-      // Also await params here before accessing id
       canonical: `${process.env.NEXT_PUBLIC_APP_URL}/cases/${resolvedParams.id}`,
     },
   };
@@ -51,7 +48,6 @@ export function generateStaticParams() {
   }));
 }
 
-// Make the component async
 export default async function CaseDetailPage({ params }: Props) {
   // Await the params object before accessing its properties
   const resolvedParams = await params;
@@ -62,6 +58,24 @@ export default async function CaseDetailPage({ params }: Props) {
     notFound();
   }
   
+  // Get user and check access
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  
+  let hasAccess = false;
+  
+  if (user) {
+    const { data: purchaseData } = await supabase
+      .from('user_purchases')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('case_id', caseId)
+      .maybeSingle();
+      
+    hasAccess = !!purchaseData;
+  }
+  
   return (
     <>
       <script
@@ -70,7 +84,12 @@ export default async function CaseDetailPage({ params }: Props) {
           __html: JSON.stringify(generateProductSchema(detectiveCase))
         }}
       />
-      <CaseDetailView detectiveCase={detectiveCase} caseId={caseId} />
+      <CaseDetailView 
+        detectiveCase={detectiveCase} 
+        caseId={caseId} 
+        initialHasAccess={hasAccess}
+        userId={user?.id}
+      />
     </>
   );
 }

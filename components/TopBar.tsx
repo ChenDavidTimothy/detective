@@ -1,20 +1,47 @@
 // components/TopBar.tsx
 'use client';
 
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/utils/supabase/client';
+import { User } from '@supabase/supabase-js';
 import { ThemeToggle } from './ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { signOut } from '@/app/login/actions'; // Import the server action
+import { signOut } from '@/app/login/actions';
 
 export default function TopBar() {
-  const { user } = useAuth();
-  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const supabase = createClient();
+    
+    // Initial user fetch
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
+      setIsLoading(false);
+    };
+    
+    fetchUser();
+    
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      }
+    );
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -24,14 +51,12 @@ export default function TopBar() {
       const result = await signOut();
       
       if (result.success) {
-        // Handle navigation client-side
-        window.location.href = '/login';  // Using window.location for a full page refresh
+        window.location.href = '/login';
       } else {
         throw new Error('Failed to sign out');
       }
     } catch (error) {
       console.error('Logout failed:', error);
-      alert('Failed to sign out. Please try again.');
       setIsLoggingOut(false);
     }
   };
@@ -45,20 +70,18 @@ export default function TopBar() {
         </Link>
 
         <div className="flex items-center gap-4">
-          {/* Theme toggle */}
           <ThemeToggle />
           
-          {/* Added Case Link */}
           <Button asChild variant="ghost" size="sm">
             <Link href="/cases">Detective Cases</Link>
           </Button>
           
-          {!user ? (
-            <>
-              <Button asChild size="sm">
-                <Link href="/login">Sign in</Link>
-              </Button>
-            </>
+          {isLoading ? (
+            <div className="h-10 w-10 animate-pulse rounded-full bg-muted"></div>
+          ) : !user ? (
+            <Button asChild size="sm">
+              <Link href="/login">Sign in</Link>
+            </Button>
           ) : (
             <>
               <Button

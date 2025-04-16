@@ -1,12 +1,16 @@
+// app/login/page.tsx
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { login, signup, signInWithGoogle } from './actions';
 import { LoginForm } from '@/components/LoginForm';
 
 export default function LoginPage() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo') || '/dashboard';
 
   const handleSubmit = async (
     email: string,
@@ -20,6 +24,7 @@ export default function LoginPage() {
       const formData = new FormData();
       formData.append('email', email);
       formData.append('password', password);
+      formData.append('returnTo', returnTo);
 
       const result = isSignUp
         ? await signup(formData)
@@ -29,9 +34,7 @@ export default function LoginPage() {
         setError(result.error.message);
         setIsLoading(false);
       } else {
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 300);
+        window.location.href = result?.redirectTo || returnTo;
       }
     } catch (err) {
       console.error('Auth error:', err);
@@ -43,7 +46,7 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await signInWithGoogle();
+      const { data, error } = await signInWithGoogle(returnTo);
 
       if (error) {
         setError(error.message);

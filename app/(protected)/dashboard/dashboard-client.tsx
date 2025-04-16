@@ -1,7 +1,8 @@
 "use client";
 
-import { useAuth } from '@/contexts/AuthContext';
-import { motion } from 'framer-motion';
+import { useState } from "react";
+import { User } from "@supabase/supabase-js";
+import { motion } from "framer-motion";
 import {
   BarChart3,
   Users,
@@ -11,7 +12,7 @@ import {
   Clock,
   TrendingUp,
   Activity,
-} from 'lucide-react';
+} from "lucide-react";
 
 // Dashboard metrics data
 const dashboardMetrics = [
@@ -73,17 +74,15 @@ const recentActivity = [
   },
 ];
 
-export default function DashboardClient() {
-  const { isLoading } = useAuth();
+interface DashboardClientProps {
+  initialUserData: User | null;
+}
 
-  // Show loading spinner while authentication is loading
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+export default function DashboardClient({
+  initialUserData,
+}: DashboardClientProps) {
+  // Use user data from props
+  const [user] = useState(initialUserData);
 
   return (
     <div className="min-h-screen bg-background">
@@ -96,7 +95,10 @@ export default function DashboardClient() {
             </h1>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-muted-foreground">
-                Welcome back!
+                Welcome back
+                {user?.email
+                  ? `, ${user.email.split("@")[0]}!`
+                  : "!"}
               </span>
             </div>
           </div>
