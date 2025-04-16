@@ -1,47 +1,55 @@
+// contexts/PayPalContext.tsx
 'use client';
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext } from 'react';
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 
-// Define the context value type
-type PayPalContextType = {
-  initialized: boolean;
-};
+// Simple context with minimal required state
+interface PayPalContextType {
+  clientId: string;
+}
 
-// Create context with default value
 const PayPalContext = createContext<PayPalContextType>({
-  initialized: false,
+  clientId: '',
 });
 
-// Hook to use the PayPal context
 export const usePayPal = () => useContext(PayPalContext);
 
-// Base PayPal configuration
-const paypalConfig = {
-  clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
-  currency: "USD",
-  intent: "capture",  
-  components: "buttons",
-  // Add these options for better reliability
-  disableFunding: undefined,
-  dataClientToken: undefined,
-  dataNamespace: "paypal_sdk_" + Math.random().toString(36).substring(2, 15),
-  // Enable debug mode in development
-  debug: process.env.NODE_ENV === 'development',
-};
+interface PayPalProviderProps {
+  children: React.ReactNode;
+}
 
-// PayPal provider component
-export function PayPalProvider({ children }: { children: ReactNode }) {
-  // We're indicating that PayPal is available through this provider
-  const contextValue: PayPalContextType = {
-    initialized: true,
+export function PayPalProvider({ children }: PayPalProviderProps) {
+  // Get client ID directly from env
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '';
+
+  // PayPal initialization options
+  const paypalOptions = {
+    'client-id': clientId,
+    currency: 'USD',
+    intent: 'capture',
+    components: 'buttons',
+    // Disable debug in production
+    debug: process.env.NODE_ENV === 'development'
   };
 
+  // Simple check if we have a client ID
+  const hasValidClientId = !!clientId && clientId.length > 5;
+
+  if (!hasValidClientId) {
+    console.warn('PayPal client ID is missing or invalid. Payment functionality will be disabled.');
+  }
+
   return (
-    <PayPalContext.Provider value={contextValue}>
-      <PayPalScriptProvider options={paypalConfig}>
-        {children}
-      </PayPalScriptProvider>
+    <PayPalContext.Provider value={{ clientId }}>
+      {hasValidClientId ? (
+        <PayPalScriptProvider options={paypalOptions}>
+          {children}
+        </PayPalScriptProvider>
+      ) : (
+        // Render children without the PayPal provider if client ID is missing
+        children
+      )}
     </PayPalContext.Provider>
   );
 }

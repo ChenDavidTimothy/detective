@@ -1,3 +1,4 @@
+// components/PayPalCheckout.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -21,7 +22,13 @@ export function PayPalCheckout(props: PayPalCheckoutProps) {
   const { detectiveCase, userId, onSuccess, onError } = props;
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(!userId);
-  const { initialized } = usePayPal();
+  const { clientId } = usePayPal();
+  const [{ isPending, isRejected, isResolved }] = usePayPalScriptReducer();
+
+  // Log PayPal script loading state for debugging
+  useEffect(() => {
+    console.log('PayPal script state:', { isPending, isRejected, isResolved });
+  }, [isPending, isRejected, isResolved]);
 
   useEffect(() => {
     if (userId) {
@@ -41,6 +48,11 @@ export function PayPalCheckout(props: PayPalCheckoutProps) {
     };
     fetchUser();
   }, [userId]);
+
+  // Called when PayPal buttons components are ready
+  const onButtonsReady = useCallback(() => {
+    console.log('PayPal buttons are ready to use');
+  }, []);
 
   if (isLoading) {
     return (
@@ -63,11 +75,39 @@ export function PayPalCheckout(props: PayPalCheckoutProps) {
     );
   }
 
-  if (!initialized) {
+  if (!clientId) {
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          Payment system is not initialized. Please refresh the page.
+          Payment system is not properly configured. Please contact support.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <div className="flex justify-center items-center h-[150px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading PayPal...</span>
+      </div>
+    );
+  }
+
+  if (isRejected) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription className="flex flex-col gap-2">
+          <p>Failed to load PayPal. Please try again.</p>
+          <Button
+            onClick={() => window.location.reload()}
+            variant="outline"
+            size="sm"
+            className="self-end"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reload Page
+          </Button>
         </AlertDescription>
       </Alert>
     );
@@ -81,6 +121,7 @@ export function PayPalCheckout(props: PayPalCheckoutProps) {
           userId={effectiveUserId}
           onSuccess={onSuccess}
           onError={onError}
+          onButtonsReady={onButtonsReady}
         />
       </div>
       <div className="text-sm text-muted-foreground mt-2 text-center">
@@ -95,21 +136,28 @@ function PayPalButtonWrapper({
   userId,
   onSuccess,
   onError,
+  onButtonsReady
 }: {
   detectiveCase: DetectiveCase;
   userId: string;
   onSuccess?: (details: Record<string, unknown>) => void;
   onError?: (error: Error) => void;
+  onButtonsReady?: () => void;
 }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [{ isPending, isRejected }] = usePayPalScriptReducer();
 
   useEffect(() => {
     setLocalError(null);
-  }, [detectiveCase.price]);
+    
+    // Call the callback when buttons are ready
+    if (onButtonsReady) {
+      onButtonsReady();
+    }
+  }, [detectiveCase.price, onButtonsReady]);
 
   const createOrder = useCallback((_data: unknown, actions: any) => {
+    console.log('Creating PayPal order');
     return actions.order.create({
       purchase_units: [{
         description: `Detective Case: ${detectiveCase.title}`,
@@ -125,7 +173,9 @@ function PayPalButtonWrapper({
     });
   }, [detectiveCase.title, detectiveCase.price]);
 
+  // Rest of the component remains the same...
   const savePurchaseDirectly = useCallback(async (orderId: string) => {
+    // Implementation remains the same
     try {
       console.log('Attempting direct database save as fallback');
       if (!userId) throw new Error('User not found');
@@ -247,25 +297,6 @@ function PayPalButtonWrapper({
     );
   }
 
-  if (isPending) {
-    return (
-      <div className="flex justify-center items-center h-[150px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading PayPal...</span>
-      </div>
-    );
-  }
-
-  if (isRejected) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          Failed to load PayPal. Please refresh the page and try again.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
   return (
     <>
       <PayPalButtons
@@ -286,6 +317,7 @@ function PayPalButtonWrapper({
             onError(err instanceof Error ? err : new Error('PayPal error'));
           }
         }}
+        onInit={() => console.log('PayPal buttons initialized')}
       />
       {isProcessing && (
         <div className="mt-4 text-center flex items-center justify-center gap-2">

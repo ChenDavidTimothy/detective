@@ -12,12 +12,44 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
     <>
       <Analytics mode="auto" />
       <ThemeProvider>
-        <PayPalProvider>
-          <TopBar />    
-          <main>{children}</main>
-          <Toaster />
-        </PayPalProvider>
+        {/* Wrap PayPalProvider with error boundary */}
+        <ErrorBoundary fallback={<PayPalErrorFallback />}>
+          <PayPalProvider>
+            <TopBar />    
+            <main>{children}</main>
+            <Toaster />
+          </PayPalProvider>
+        </ErrorBoundary>
       </ThemeProvider>
     </>
+  );
+}
+
+// Error boundary for PayPal issues
+import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary';
+
+function PayPalErrorFallback() {
+  return (
+    <>
+      <TopBar />
+      <main>
+        {children}
+      </main>
+      <Toaster />
+    </>
+  );
+}
+
+// Simple error boundary component
+function ErrorBoundary({ children, fallback }: { children: React.ReactNode, fallback: React.ReactNode }) {
+  return (
+    <ReactErrorBoundary
+      fallbackRender={() => fallback}
+      onError={(error) => {
+        console.error('Error in React component:', error);
+      }}
+    >
+      {children}
+    </ReactErrorBoundary>
   );
 }

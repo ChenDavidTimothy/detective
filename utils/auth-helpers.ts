@@ -1,3 +1,4 @@
+// utils/auth-helpers.ts
 export type AuthErrorType =
   | 'email-already-exists'
   | 'invalid-credentials'
@@ -19,10 +20,13 @@ export function normalizeAuthError(error: unknown): NormalizedAuthError {
 
   // Check for email already exists errors
   if (
-    message.includes('already registered') ||
-    message.includes('already in use') ||
-    message.includes('User already exists') ||
-    message.includes('Email address is already registered')
+    message.toLowerCase().includes('already registered') ||
+    message.toLowerCase().includes('already in use') ||
+    message.toLowerCase().includes('user already exists') ||
+    message.toLowerCase().includes('email address is already registered') ||
+    message.toLowerCase().includes('account conflict') ||
+    message.toLowerCase().includes('existing account') ||
+    message.toLowerCase().includes('email already exists')
   ) {
     return {
       type: 'email-already-exists',
@@ -33,8 +37,10 @@ export function normalizeAuthError(error: unknown): NormalizedAuthError {
 
   // Invalid credentials
   if (
-    message.includes('Invalid login credentials') ||
-    message.includes('Invalid email or password')
+    message.toLowerCase().includes('invalid login credentials') ||
+    message.toLowerCase().includes('invalid email or password') ||
+    message.toLowerCase().includes('incorrect email') ||
+    message.toLowerCase().includes('incorrect password')
   ) {
     return {
       type: 'invalid-credentials',
@@ -44,7 +50,11 @@ export function normalizeAuthError(error: unknown): NormalizedAuthError {
   }
 
   // Weak password
-  if (message.includes('Password should be')) {
+  if (
+    message.toLowerCase().includes('password should be') ||
+    message.toLowerCase().includes('password too weak') ||
+    message.toLowerCase().includes('password requirements')
+  ) {
     return {
       type: 'weak-password',
       message: "Please use a stronger password. It should be at least 6 characters long.",
@@ -54,8 +64,9 @@ export function normalizeAuthError(error: unknown): NormalizedAuthError {
 
   // Expired token
   if (
-    message.includes('Token expired') ||
-    message.includes('JWT expired')
+    message.toLowerCase().includes('token expired') ||
+    message.toLowerCase().includes('jwt expired') ||
+    message.toLowerCase().includes('session expired')
   ) {
     return {
       type: 'expired-token',
