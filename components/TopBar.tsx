@@ -24,9 +24,8 @@ export default function TopBar() {
   const router = useRouter();
 
   useEffect(() => {
-    const supabase = createClient();
-
     const fetchUser = async () => {
+      const supabase = createClient();
       const { data } = await supabase.auth.getUser();
       setUser(data.user);
       setIsLoading(false);
@@ -34,7 +33,7 @@ export default function TopBar() {
 
     fetchUser();
 
-    // Correct destructuring for subscription
+    const supabase = createClient();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
@@ -69,15 +68,15 @@ export default function TopBar() {
           href="/"
           className="text-md sm:text-lg font-medium flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <span className="text-2xl">🎬</span>
-          <span className="font-sans">NextTemp</span>
+          <span className="text-2xl">🔍</span>
+          <span className="font-sans">Detective Cases</span>
         </Link>
 
         <div className="flex items-center gap-4">
           <ThemeToggle />
 
           <Button asChild variant="ghost" size="sm">
-            <Link href="/cases">Detective Cases</Link>
+            <Link href="/cases">Browse Cases</Link>
           </Button>
 
           {isLoading ? (
@@ -94,7 +93,7 @@ export default function TopBar() {
                 size="sm"
                 className="hidden sm:flex"
               >
-                Dashboard
+                My Cases
               </Button>
 
               <DropdownMenu>

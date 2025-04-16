@@ -2,87 +2,87 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { TypewriterEffect } from '@/components/TypewriterEffect';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Link as ScrollLink } from 'react-scroll';
 import { VideoModal } from '@/components/VideoModal';
 import { User } from '@supabase/supabase-js';
 
-// Workflow steps for the UI
-const workflowSteps = [
+// Investigation workflow steps for the UI
+const investigationSteps = [
   {
-    title: 'Step One',
-    description: 'First step of your workflow',
-    preview: <TypewriterEffect text="Processing step one..." />,
+    title: 'Examine Evidence',
+    description: 'Study crime scene photos and physical evidence',
   },
   {
-    title: 'Step Two',
-    description: 'Second step of your workflow',
-    preview: <TypewriterEffect text="Executing step two..." />,
+    title: 'Interview Witnesses',
+    description: 'Question witnesses and suspects to gather information',
   },
   {
-    title: 'Step Three',
-    description: 'Third step of your workflow',
-    preview: <TypewriterEffect text="Running step three..." />,
+    title: 'Analyze Clues',
+    description: 'Connect the dots between evidence and testimonies',
   },
   {
-    title: 'Step Four',
-    description: 'Fourth step of your workflow',
-    preview: <TypewriterEffect text="Completing step four..." />,
+    title: 'Solve the Case',
+    description: 'Present your findings and identify the culprit',
   },
 ];
 
 // Sections for the landing page
-const workflowSections = [
+const investigationSections = [
   {
     id: 'overview',
     title: 'Overview',
-    description: 'Everything you need to build modern SaaS applications',
+    description:
+      'Immersive detective experiences that challenge your deductive skills',
     bgClass: 'bg-background',
   },
   {
-    id: 'authentication',
-    title: 'Authentication',
-    description: 'Secure user authentication with multiple providers',
+    id: 'cases',
+    title: 'Detective Cases',
+    description:
+      'Solve mysteries ranging from art thefts to complex murder investigations',
     bgClass: 'bg-muted',
     metrics: [
-      { label: 'Auth Providers', value: '5+' },
-      { label: 'Setup Time', value: '2min' },
-      { label: 'Security', value: 'A+' },
+      { label: 'Total Cases', value: '15+' },
+      { label: 'Difficulty Levels', value: '3' },
+      { label: 'Solve Rate', value: '62%' },
     ],
   },
   {
-    id: 'payments',
-    title: 'Payments',
-    description: 'Seamless payment integration with PayPal',
+    id: 'evidence',
+    title: 'Evidence Analysis',
+    description:
+      'Examine documents, crime scene photos, and digital communications',
     bgClass: 'bg-background',
     metrics: [
-      { label: 'Integration', value: '1-Click' },
-      { label: 'Providers', value: 'PayPal' },
-      { label: 'Setup Time', value: '5min' },
+      { label: 'Evidence Types', value: '20+' },
+      { label: 'Digital Tools', value: '5' },
+      { label: 'Success Rate', value: '78%' },
     ],
   },
   {
-    id: 'database',
-    title: 'Database',
-    description: 'Powerful database with Supabase integration',
+    id: 'profiles',
+    title: 'Suspect Profiles',
+    description:
+      'Study detailed backgrounds and psychological profiles of potential culprits',
     bgClass: 'bg-muted',
     metrics: [
-      { label: 'Database', value: 'PostgreSQL' },
-      { label: 'Real-time', value: 'Yes' },
-      { label: 'Security', value: 'RLS' },
+      { label: 'Suspect Details', value: 'Comprehensive' },
+      { label: 'Interrogations', value: 'Interactive' },
+      { label: 'Red Herrings', value: 'Deceptive' },
     ],
   },
   {
-    id: 'features',
-    title: 'Features',
-    description: 'Additional features to enhance your application',
+    id: 'community',
+    title: 'Detective Community',
+    description:
+      'Compare your detective skills with other investigators worldwide',
     bgClass: 'bg-background',
     metrics: [
-      { label: 'Dark Mode', value: 'Built-in' },
-      { label: 'Components', value: '50+' },
-      { label: 'TypeScript', value: '100%' },
+      { label: 'Global Ranking', value: 'Live' },
+      { label: 'Detective Badges', value: '12' },
+      { label: 'Case Discussions', value: 'Forums' },
     ],
   },
 ];
@@ -106,12 +106,12 @@ export default function LandingPageClient() {
     fetchUser();
 
     const supabase = createClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-        setIsLoading(false);
-      }
-    );
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -124,7 +124,7 @@ export default function LandingPageClient() {
       <nav className="sticky top-0 z-50 bg-card/80 backdrop-blur-xs border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4 overflow-x-auto hide-scrollbar">
-            {workflowSections.map((section, index) => (
+            {investigationSections.map((section, index) => (
               <ScrollLink
                 key={section.id}
                 to={section.id}
@@ -172,13 +172,13 @@ export default function LandingPageClient() {
             {/* Header Content */}
             <div className="text-center">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground">
-                <span className="block">Next.js + PayPal + Supabase</span>
+                <span className="block">Solve Mysteries Like a</span>
                 <span className="block text-primary">
-                  Production-Ready Template
+                  Professional Detective
                 </span>
               </h1>
               <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-                Start building with authentication and payments in minutes.
+                Immerse yourself in intriguing cases, analyze evidence, interview suspects, and put your deductive skills to the test.
               </p>
 
               {/* CTA Buttons */}
@@ -206,42 +206,46 @@ export default function LandingPageClient() {
                   {isLoading
                     ? 'Loading...'
                     : user
-                    ? 'Go to Dashboard'
-                    : 'Get Started'}
+                    ? 'My Cases'
+                    : 'Start Investigating'}
                 </motion.button>
               </div>
             </div>
 
-            {/* Combined Preview: Code + Workflow Steps */}
+            {/* Combined Preview: Investigation Experience */}
             <div className="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Code Preview */}
+              {/* Case Preview */}
               <div className="relative">
                 <pre className="relative rounded-xl bg-slate-900 p-8 shadow-2xl">
                   <code className="text-sm sm:text-base text-slate-100">
-                    <TypewriterEffect
-                      text={`// 🚀 The Ultimate Dev Setup
-import { useCoffee, useCode } from '@/hooks/dev';
+                    {`// The Missing Artifact Case File
+CASE #001
 
-export const DevLife = () => {
-  const { coffee } = useCoffee();
-  const { bugs } = useCode();
-  
-  return (
-    <div className="dev-life">
-      <Status>
-        {coffee ? '⚡️ Coding Mode' : '😴 Need Coffee'}
-        {bugs === 0 ? '🎉 No Bugs!' : '🐛 Debug Time'}
-      </Status>
-    </div>
-  );`}
-                    />
+LOCATION: City Museum
+DATE: April 10, 2025
+STATUS: OPEN
+
+EVIDENCE COLLECTED:
+- Security footage (8:15pm-8:45pm)
+- Fingerprints on display case
+- Staff access logs
+- Anonymous tip received
+
+WITNESSES:
+- Night security guard
+- Museum curator
+- Cleaning staff
+
+NOTES: Valuable artifact disappeared 
+during regular hours. No signs of 
+forced entry. Alarm was disabled.`}
                   </code>
                 </pre>
               </div>
 
-              {/* Workflow Steps */}
+              {/* Investigation Steps */}
               <div className="grid grid-cols-1 gap-4">
-                {workflowSteps.map((step, index) => (
+                {investigationSteps.map((step, index) => (
                   <motion.div
                     key={step.title}
                     initial={{ opacity: 1, y: 0 }}
@@ -267,7 +271,7 @@ export const DevLife = () => {
       </div>
 
       {/* Other sections */}
-      {workflowSections.slice(1).map((section, index) => (
+      {investigationSections.slice(1).map((section) => (
         <motion.section
           key={section.id}
           id={section.id}
@@ -328,10 +332,11 @@ export const DevLife = () => {
                 whileInView={{ y: 0 }}
                 className="text-3xl font-bold text-foreground"
               >
-                Ready to Get Started?
+                Ready to Become a Detective?
+
               </motion.h2>
               <p className="mt-4 text-lg text-muted-foreground">
-                Start using our product today
+                Start solving mysteries and putting your detective skills to the test
               </p>
 
               <div className="mt-10 flex gap-4 justify-center">
@@ -358,8 +363,8 @@ export const DevLife = () => {
                   {isLoading
                     ? 'Loading...'
                     : user
-                    ? 'Go to Dashboard'
-                    : 'Get Started'}
+                    ? 'View My Cases'
+                    : 'Start Investigating'}
                 </motion.button>
               </div>
             </div>
