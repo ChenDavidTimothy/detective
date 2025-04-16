@@ -8,13 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { normalizeAuthError, type NormalizedAuthError } from '@/utils/auth-helpers';
 
 interface LoginFormProps {
   onSubmit: (email: string, password: string, isSignUp: boolean) => Promise<void>;
   onGoogleSignIn: () => Promise<void>;
   isLoading: boolean;
-  error?: NormalizedAuthError | string;
+  error?: string;
 }
 
 export function LoginForm({ 
@@ -27,7 +26,7 @@ export function LoginForm({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
-  const [localError, setLocalError] = useState<NormalizedAuthError | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,28 +34,14 @@ export function LoginForm({
     await onSubmit(email, password, isSignUp);
   };
 
-  // Function to render error message with appropriate action button
+  // Function to render error message
   const renderError = () => {
-    const displayError = localError || (error ? (typeof error === 'string' 
-      ? normalizeAuthError(error) 
-      : error) : null);
+    const displayError = localError || error;
     if (!displayError) return null;
     return (
       <Alert variant="destructive" className="mb-4">
-        <AlertDescription className="flex flex-col gap-2">
-          <span>{displayError.message}</span>
-          {displayError.type === 'email-already-exists' && displayError.message.includes('Google') && (
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsForgotPasswordOpen(true)}
-                size="sm"
-              >
-                Forgot password
-              </Button>
-            </div>
-          )}
+        <AlertDescription>
+          {displayError}
         </AlertDescription>
       </Alert>
     );

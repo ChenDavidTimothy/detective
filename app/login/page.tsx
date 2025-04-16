@@ -3,12 +3,9 @@
 import { useState } from 'react';
 import { login, signup, signInWithGoogle } from './actions';
 import { LoginForm } from '@/components/LoginForm';
-import { useRouter } from 'next/navigation';
-import { NormalizedAuthError, normalizeAuthError } from '@/utils/auth-helpers';
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [error, setError] = useState<NormalizedAuthError | undefined>(undefined);
+  const [error, setError] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (
@@ -29,7 +26,7 @@ export default function LoginPage() {
         : await login(formData);
 
       if (result?.error) {
-        setError(normalizeAuthError(result.error));
+        setError(result.error.message);
         setIsLoading(false);
       } else {
         setTimeout(() => {
@@ -38,7 +35,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.error('Auth error:', err);
-      setError(normalizeAuthError(err));
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setIsLoading(false);
     }
   };
@@ -49,13 +46,13 @@ export default function LoginPage() {
       const { data, error } = await signInWithGoogle();
 
       if (error) {
-        setError(normalizeAuthError(error));
+        setError(error.message);
       } else if (data?.url) {
         window.location.href = data.url;
       }
     } catch (err) {
       console.error('Google sign in error:', err);
-      setError(normalizeAuthError(err));
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }

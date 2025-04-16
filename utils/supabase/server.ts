@@ -24,6 +24,18 @@ export async function createClient() {
           }
         },
       },
+      // Ensure that the client can be used with admin capabilities
+      auth: {
+        flowType: 'pkce',
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+      },
+      // Optional: Add global headers with your admin key
+      global: {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     }
   )
 }

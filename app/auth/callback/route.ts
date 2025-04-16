@@ -1,5 +1,5 @@
-import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/utils/supabase/server'
 import { type EmailOtpType } from '@supabase/supabase-js'
 
 export async function GET(request: Request) {
@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   const type = searchParams.get('type') as EmailOtpType | null
   const next = searchParams.get('next') ?? '/dashboard'
 
+  // Handle both code-based auth and token_hash-based auth
   if (code) {
     const supabase = await createClient()
     
@@ -23,6 +24,8 @@ export async function GET(request: Request) {
       // For other auth flows, redirect to the next page
       return NextResponse.redirect(`${origin}${next}`)
     }
+    
+    console.error('Auth callback error:', error)
   }
 
   // If there was an error or no code, redirect to an error page
