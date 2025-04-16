@@ -3,7 +3,14 @@
 import { useState } from 'react'
 import { resetPassword } from '@/app/login/actions'
 import { useSearchParams } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -26,13 +33,13 @@ export default function ResetPasswordPage() {
       const formData = new FormData()
       formData.append('email', emailInput)
       const result = await resetPassword(formData)
-      
+
       if (result.error) {
         setError(result.error.message)
       } else {
         setSuccess(true)
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)
@@ -45,10 +52,10 @@ export default function ResetPasswordPage() {
         <CardHeader>
           <CardTitle>Reset Password</CardTitle>
           <CardDescription>
-            Enter your email and we'll send you a link to reset your password.
+            Enter your email and we&apos;ll send you a link to reset your password.
           </CardDescription>
         </CardHeader>
-        
+
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
@@ -56,7 +63,7 @@ export default function ResetPasswordPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             {success ? (
               <Alert className="border-green-500 bg-green-50 dark:bg-green-900/20">
                 <AlertDescription className="text-green-600 dark:text-green-400">
@@ -75,12 +82,12 @@ export default function ResetPasswordPage() {
               </div>
             )}
           </CardContent>
-          
+
           <CardFooter className="flex justify-between">
             <Button type="button" variant="outline" asChild>
               <Link href="/login">Back to login</Link>
             </Button>
-            
+
             {!success && (
               <Button type="submit" disabled={isLoading || !emailInput}>
                 {isLoading ? 'Sending...' : 'Send Reset Link'}

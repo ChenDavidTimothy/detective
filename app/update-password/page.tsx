@@ -3,7 +3,14 @@
 import { useState, useEffect } from 'react'
 import { updatePassword } from '@/app/login/actions'
 import { createClient } from '@/utils/supabase/client'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -17,21 +24,18 @@ export default function UpdatePasswordPage() {
   const [success, setSuccess] = useState(false)
   const [isAuthChecking, setIsAuthChecking] = useState(true)
   const router = useRouter()
-  
+
   // Check authentication on page load
   useEffect(() => {
     const checkAuth = async () => {
       const supabase = createClient()
       const { data, error } = await supabase.auth.getUser()
-      
       if (error || !data?.user) {
-        // If not authenticated, redirect to login
         router.push('/login?error=password_reset_expired')
       } else {
         setIsAuthChecking(false)
       }
     }
-    
     checkAuth()
   }, [router])
 
@@ -41,37 +45,30 @@ export default function UpdatePasswordPage() {
       const timer = setTimeout(() => {
         router.push('/dashboard')
       }, 2000)
-      
       return () => clearTimeout(timer)
     }
   }, [success, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (password !== confirmPassword) {
       setError("Passwords don't match")
       return
     }
-    
     setIsLoading(true)
     setError(null)
-
     try {
       const formData = new FormData()
       formData.append('password', password)
-      
       const result = await updatePassword(formData)
-      
       if (result?.error) {
         setError(result.error.message)
-        setIsLoading(false)
       } else if (result?.success) {
         setSuccess(true)
-        setIsLoading(false)
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
+    } finally {
       setIsLoading(false)
     }
   }
@@ -96,7 +93,6 @@ export default function UpdatePasswordPage() {
             Create a new password for your account
           </CardDescription>
         </CardHeader>
-        
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
@@ -104,7 +100,6 @@ export default function UpdatePasswordPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
             {success && (
               <Alert className="border-green-500 bg-green-50 dark:bg-green-900/20">
                 <AlertDescription className="text-green-600 dark:text-green-400">
@@ -112,38 +107,31 @@ export default function UpdatePasswordPage() {
                 </AlertDescription>
               </Alert>
             )}
-            
             {!success && (
               <>
-                <div className="space-y-2">
-                  <Input
-                    type="password"
-                    placeholder="New Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Input
-                    type="password"
-                    placeholder="Confirm Password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </div>
+                <Input
+                  type="password"
+                  placeholder="New Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6} // Minimum password length
+                />
+                <Input
+                  type="password"
+                  placeholder="Confirm Password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
               </>
             )}
           </CardContent>
-          
           <CardFooter>
             {!success && (
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full"
                 disabled={isLoading || !password || !confirmPassword}
               >

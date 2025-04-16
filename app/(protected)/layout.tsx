@@ -11,34 +11,26 @@ export default async function ProtectedLayout({
   // Access Supabase client for auth check
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
-  
+
   if (error || !data?.user) {
     // Get current path to redirect back after login
-    // Headers must be awaited in Next.js 14
     const headersList = await headers();
-    
-    // Safely access header values
-    let currentPath = '';
-    try {
-      currentPath = headersList.get('x-pathname') || 
-                    headersList.get('x-url') || 
-                    headersList.get('referer') || 
-                    '';
-                    
-      // If it's a full URL, extract just the path
-      if (currentPath.includes('://')) {
-        const url = new URL(currentPath);
-        currentPath = url.pathname;
-      }
-    } catch (e) {
-      console.error('Error accessing headers:', e);
-      // Fallback to empty path
-      currentPath = '';
-    }
-    
+
+    // Try to get the current path from known headers
+    const rawPath =
+      headersList.get('x-pathname') ||
+      headersList.get('x-url') ||
+      headersList.get('referer') ||
+      '';
+
+    // If it's a full URL, extract just the path
+    const currentPath = rawPath.includes('://')
+      ? new URL(rawPath).pathname
+      : rawPath;
+
     const returnTo = encodeURIComponent(currentPath);
     redirect(`/login?returnTo=${returnTo}`);
   }
 
-  return <>{children}</>;
+  return children;
 }

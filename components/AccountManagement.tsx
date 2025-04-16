@@ -26,44 +26,36 @@ interface AccountManagementProps {
 }
 
 export function AccountManagement({ initialUserData }: AccountManagementProps) {
-  const [user, setUser] = useState<User | null>(initialUserData || null);
+  const [user, setUser] = useState<User | null>(initialUserData ?? null);
   const router = useRouter();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  // If initialUserData is not provided, fetch user data
+  // Fetch user data if not provided
   useEffect(() => {
     if (!initialUserData) {
-      const fetchUser = async () => {
+      (async () => {
         const supabase = createClient();
         const { data } = await supabase.auth.getUser();
         setUser(data.user);
-      };
-      fetchUser();
+      })();
     }
   }, [initialUserData]);
 
-  const isOAuthUser = user?.app_metadata?.provider === 'google';
-
   const handleDeleteAccount = async () => {
     if (!user?.id) return;
-
     setIsLoading(true);
     setError('');
-
     try {
       const response = await fetch(`/api/user/delete?userId=${user.id}`, {
         method: 'DELETE',
       });
-
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete account');
+        const { error: errMsg } = await response.json();
+        throw new Error(errMsg || 'Failed to delete account');
       }
-
-      // Use the server action to sign out
       await signOut();
       router.push('/login');
     } catch (error) {
@@ -78,41 +70,38 @@ export function AccountManagement({ initialUserData }: AccountManagementProps) {
 
   const handleResetPassword = () => {
     if (isResettingPassword || !user?.email) return;
-
     setIsResettingPassword(true);
-
     router.push(`/reset-password?email=${encodeURIComponent(user.email)}`);
-
-    setTimeout(() => {
-      setIsResettingPassword(false);
-    }, 3000);
+    // No need to reset isResettingPassword, as navigation occurs
   };
 
   if (!user) {
     return <div>Loading account information...</div>;
   }
 
+  const isOAuthUser = user.app_metadata?.provider === 'google';
+
   return (
     <Card className="mb-8">
       <CardHeader>
         <CardTitle>Account Management</CardTitle>
       </CardHeader>
-
       <CardContent className="space-y-6">
         <div className="space-y-2 text-muted-foreground">
           <p>
-            <span className="font-medium">Email:</span> {user?.email}
+            <span className="font-medium">Email:</span> {user.email}
           </p>
           <p>
             <span className="font-medium">Last Sign In:</span>{' '}
-            {new Date(user?.last_sign_in_at || '').toLocaleString()}
+            {user.last_sign_in_at
+              ? new Date(user.last_sign_in_at).toLocaleString()
+              : 'N/A'}
           </p>
           <p>
             <span className="font-medium">Account Type:</span>{' '}
             {isOAuthUser ? 'Google Account' : 'Email Account'}
           </p>
         </div>
-
         <div>
           {!isOAuthUser && (
             <Button
@@ -126,8 +115,6 @@ export function AccountManagement({ initialUserData }: AccountManagementProps) {
                 : 'Reset Password'}
             </Button>
           )}
-
-          {/* Delete account button */}
           <Button
             onClick={() => setIsDeleteModalOpen(true)}
             variant="destructive"
@@ -137,8 +124,6 @@ export function AccountManagement({ initialUserData }: AccountManagementProps) {
           </Button>
         </div>
       </CardContent>
-
-      {/* Delete account modal dialog */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -148,13 +133,11 @@ export function AccountManagement({ initialUserData }: AccountManagementProps) {
               deleted.
             </DialogDescription>
           </DialogHeader>
-
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-
           <DialogFooter>
             <Button
               variant="outline"

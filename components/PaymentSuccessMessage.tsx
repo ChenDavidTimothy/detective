@@ -1,7 +1,7 @@
 // components/PaymentSuccessMessage.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { CheckCircle, Loader2 } from 'lucide-react';
 
 interface PaymentSuccessMessageProps {
@@ -13,23 +13,16 @@ interface PaymentSuccessMessageProps {
 export function PaymentSuccessMessage({
   message = "Thank you for your purchase. You now have access to this content.",
   redirectPath,
-  redirectDelay = 2500
+  redirectDelay = 2500,
 }: PaymentSuccessMessageProps) {
-  const [isRedirecting, setIsRedirecting] = useState(false);
-  
   useEffect(() => {
-    // Start the redirect process
     const timer = setTimeout(() => {
-      setIsRedirecting(true);
-      console.log('Executing redirect to', redirectPath);
-      
-      // Use direct browser navigation for guaranteed redirect
       window.location.href = redirectPath;
     }, redirectDelay);
-    
+
     return () => clearTimeout(timer);
   }, [redirectPath, redirectDelay]);
-  
+
   return (
     <div className="bg-green-50 dark:bg-green-900/20 border border-green-500 rounded-lg p-8 text-center">
       <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />

@@ -3,30 +3,13 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { TypewriterEffect } from '@/components/TypewriterEffect';
-import { FaReddit } from 'react-icons/fa';
-import {
-  FaGithub,
-  FaDiscord,
-  FaProductHunt,
-  FaXTwitter,
-  FaHackerNews,
-  FaInstagram,
-  FaTiktok,
-  FaYoutube,
-} from 'react-icons/fa6';
-import { Lock, CreditCard, Moon } from 'lucide-react';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { useInView } from 'react-intersection-observer';
+import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Link as ScrollLink } from 'react-scroll';
 import { VideoModal } from '@/components/VideoModal';
-import { useTheme } from '@/contexts/ThemeContext';
 import { User } from '@supabase/supabase-js';
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-// ... (workflowSteps, platforms, workflowSections, useSectionProgressValues, featureCards remain unchanged)
-
+// Workflow steps for the UI
 const workflowSteps = [
   {
     title: 'Step One',
@@ -50,18 +33,7 @@ const workflowSteps = [
   },
 ];
 
-const platforms = [
-  { name: 'Platform 1', icon: FaGithub },
-  { name: 'Platform 2', icon: FaDiscord },
-  { name: 'Platform 3', icon: FaReddit },
-  { name: 'Platform 4', icon: FaProductHunt },
-  { name: 'Platform 5', icon: FaXTwitter },
-  { name: 'Platform 6', icon: FaHackerNews },
-  { name: 'Platform 7', icon: FaInstagram },
-  { name: 'Platform 8', icon: FaTiktok },
-  { name: 'Platform 9', icon: FaYoutube },
-];
-
+// Sections for the landing page
 const workflowSections = [
   {
     id: 'overview',
@@ -115,74 +87,12 @@ const workflowSections = [
   },
 ];
 
-function useSectionProgressValues(numSections: number) {
-  const { scrollYProgress } = useScroll();
-
-  const section1Progress = useTransform(
-    scrollYProgress,
-    [0 / numSections, 1 / numSections],
-    [0, 1]
-  );
-  const section2Progress = useTransform(
-    scrollYProgress,
-    [1 / numSections, 2 / numSections],
-    [0, 1]
-  );
-  const section3Progress = useTransform(
-    scrollYProgress,
-    [2 / numSections, 3 / numSections],
-    [0, 1]
-  );
-  const section4Progress = useTransform(
-    scrollYProgress,
-    [3 / numSections, 4 / numSections],
-    [0, 1]
-  );
-
-  return [
-    section1Progress,
-    section2Progress,
-    section3Progress,
-    section4Progress,
-  ];
-}
-
-const featureCards = [
-  {
-    title: 'Authentication',
-    description: 'Supabase auth with social providers',
-    icon: <Lock className="h-6 w-6 text-primary" />,
-    bgGradient: 'from-blue-500/10 to-purple-500/10',
-  },
-  {
-    title: 'Payments',
-    description: 'PayPal integration',
-    icon: <CreditCard className="h-6 w-6 text-primary" />,
-    bgGradient: 'from-green-500/10 to-emerald-500/10',
-  },
-  {
-    title: 'Dark Mode',
-    description: 'Built-in theme management',
-    icon: <Moon className="h-6 w-6 text-primary" />,
-    bgGradient: 'from-orange-500/10 to-red-500/10',
-  },
-];
-
 export default function LandingPageClient() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('overview');
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
-  const sectionProgressValues = useSectionProgressValues(workflowSections.length);
-  const { theme } = useTheme();
   const router = useRouter();
-
-  const [dashboardRef, inView] = useInView({
-    triggerOnce: true,
-    threshold: 0.1,
-  });
-
-  const { scrollYProgress } = useScroll();
 
   // Supabase user fetch and auth state change
   useEffect(() => {

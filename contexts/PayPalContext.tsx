@@ -4,14 +4,12 @@
 import React, { createContext, useContext } from 'react';
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 
-// Simple context with minimal required state
+// Context provides clientId if needed elsewhere in the app
 interface PayPalContextType {
   clientId: string;
 }
 
-const PayPalContext = createContext<PayPalContextType>({
-  clientId: '',
-});
+const PayPalContext = createContext<PayPalContextType>({ clientId: '' });
 
 export const usePayPal = () => useContext(PayPalContext);
 
@@ -20,24 +18,23 @@ interface PayPalProviderProps {
 }
 
 export function PayPalProvider({ children }: PayPalProviderProps) {
-  // Get client ID directly from env
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '';
 
-  // PayPal initialization options
+  // Use correct key for PayPalScriptProvider options
   const paypalOptions = {
-    'client-id': clientId,
+    clientId, // camelCase, as required by types
     currency: 'USD',
     intent: 'capture',
     components: 'buttons',
-    // Disable debug in production
-    debug: process.env.NODE_ENV === 'development'
+    debug: process.env.NODE_ENV === 'development',
   };
 
-  // Simple check if we have a client ID
-  const hasValidClientId = !!clientId && clientId.length > 5;
+  const hasValidClientId = Boolean(clientId);
 
   if (!hasValidClientId) {
-    console.warn('PayPal client ID is missing or invalid. Payment functionality will be disabled.');
+    console.warn(
+      'PayPal client ID is missing. Payment functionality will be disabled.'
+    );
   }
 
   return (
@@ -47,7 +44,7 @@ export function PayPalProvider({ children }: PayPalProviderProps) {
           {children}
         </PayPalScriptProvider>
       ) : (
-        // Render children without the PayPal provider if client ID is missing
+        // If clientId is missing, render children without PayPal provider
         children
       )}
     </PayPalContext.Provider>

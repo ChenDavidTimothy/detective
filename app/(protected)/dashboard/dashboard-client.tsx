@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { User } from "@supabase/supabase-js";
 import { motion } from "framer-motion";
 import {
   BarChart3,
@@ -13,6 +11,7 @@ import {
   TrendingUp,
   Activity,
 } from "lucide-react";
+import { User } from "@supabase/supabase-js";
 
 // Dashboard metrics data
 const dashboardMetrics = [
@@ -81,9 +80,6 @@ interface DashboardClientProps {
 export default function DashboardClient({
   initialUserData,
 }: DashboardClientProps) {
-  // Use user data from props
-  const [user] = useState(initialUserData);
-
   return (
     <div className="min-h-screen bg-background">
       {/* Dashboard Header */}
@@ -96,8 +92,8 @@ export default function DashboardClient({
             <div className="flex items-center space-x-4">
               <span className="text-sm text-muted-foreground">
                 Welcome back
-                {user?.email
-                  ? `, ${user.email.split("@")[0]}!`
+                {initialUserData?.email
+                  ? `, ${initialUserData.email.split("@")[0]}!`
                   : "!"}
               </span>
             </div>

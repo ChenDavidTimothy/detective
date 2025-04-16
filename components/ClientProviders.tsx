@@ -2,6 +2,8 @@
 'use client';
 
 import { Analytics } from "@vercel/analytics/react";
+import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary';
+
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { PayPalProvider } from '@/contexts/PayPalContext';
 import TopBar from '@/components/TopBar';
@@ -12,10 +14,9 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
     <>
       <Analytics mode="auto" />
       <ThemeProvider>
-        {/* Wrap PayPalProvider with error boundary */}
         <ErrorBoundary fallback={<PayPalErrorFallback />}>
           <PayPalProvider>
-            <TopBar />    
+            <TopBar />
             <main>{children}</main>
             <Toaster />
           </PayPalProvider>
@@ -26,22 +27,27 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
 }
 
 // Error boundary for PayPal issues
-import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary';
-
 function PayPalErrorFallback() {
   return (
-    <>
+    <div style={{ padding: 32, textAlign: 'center' }}>
       <TopBar />
       <main>
-        {children}
+        <h2>Something went wrong with PayPal services.</h2>
+        <p>Please try again later or contact support.</p>
       </main>
       <Toaster />
-    </>
+    </div>
   );
 }
 
 // Simple error boundary component
-function ErrorBoundary({ children, fallback }: { children: React.ReactNode, fallback: React.ReactNode }) {
+function ErrorBoundary({
+  children,
+  fallback,
+}: {
+  children: React.ReactNode;
+  fallback: React.ReactNode;
+}) {
   return (
     <ReactErrorBoundary
       fallbackRender={() => fallback}

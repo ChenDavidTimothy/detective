@@ -5,12 +5,18 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
 function VerifyEmailContent() {
-  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -22,24 +28,21 @@ function VerifyEmailContent() {
     const checkVerification = async () => {
       const supabase = createClient()
       const { data } = await supabase.auth.getUser()
-      setUser(data.user)
       setLoading(false)
-      
+
       // Redirect if user is already verified
       if (data.user?.email_confirmed_at) {
         router.replace('/dashboard')
       }
     }
-    
+
     checkVerification()
-    
+
     // Set up auth state listener
     const supabase = createClient()
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          setUser(session?.user ?? null)
-          
           // Redirect on verification
           if (session?.user?.email_confirmed_at) {
             router.replace('/dashboard')
@@ -47,7 +50,7 @@ function VerifyEmailContent() {
         }
       }
     )
-    
+
     return () => {
       subscription.unsubscribe()
     }
@@ -99,7 +102,10 @@ function VerifyEmailContent() {
 
         <CardContent className="space-y-6">
           <div className="text-center text-muted-foreground">
-            <p>Please check your email and click the verification link to continue.</p>
+            <p>
+              Please check your email and click the verification link to
+              continue.
+            </p>
             <p className="mt-4">
               Didn&apos;t receive the email? You can request a new one{' '}
               {countdown > 0 ? (
@@ -118,11 +124,7 @@ function VerifyEmailContent() {
         </CardContent>
 
         <CardFooter className="flex justify-center">
-          <Button
-            variant="link"
-            className="text-primary"
-            asChild
-          >
+          <Button variant="link" className="text-primary" asChild>
             <Link href="/login">← Back to login</Link>
           </Button>
         </CardFooter>

@@ -26,34 +26,27 @@ type CaseDetailViewProps = {
   userId?: string;
 };
 
-export default function CaseDetailView({ 
-  detectiveCase, 
-  caseId, 
+export default function CaseDetailView({
+  detectiveCase,
+  caseId,
   initialHasAccess,
-  userId
+  userId,
 }: CaseDetailViewProps) {
   const router = useRouter();
-  const { hasAccess, isLoading, error, refresh } = useCaseAccess(caseId, initialHasAccess);
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
-  const [isPaymentComplete, setIsPaymentComplete] = useState(false);
+  const { hasAccess, isLoading, error, refresh } = useCaseAccess(
+    caseId,
+    initialHasAccess
+  );
+  const [paymentStatus, setPaymentStatus] = useState<
+    'idle' | 'processing' | 'success'
+  >('idle');
 
-  // When payment is successful, show success and redirect
+  // When payment is successful, show success and refresh access
   const handlePaymentSuccess = (details: Record<string, unknown>) => {
     console.log('Payment completed successfully', details);
-    
-    // Mark payment as complete to prevent content flash
-    setIsPaymentComplete(true);
-    // Update status to show success UI
     setPaymentStatus('success');
-    
-    // Refresh access in the background 
     refresh();
   };
-
-  // Determine what to show
-  const showPaidContent = hasAccess && !isPaymentComplete;
-  const showPaymentOptions = !hasAccess && !isPaymentComplete;
-  const showSuccessMessage = isPaymentComplete && paymentStatus === 'success';
 
   return (
     <div className="min-h-screen bg-background">
@@ -99,7 +92,13 @@ export default function CaseDetailView({
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
-            ) : showPaidContent ? (
+            ) : paymentStatus === 'success' ? (
+              <PaymentSuccessMessage
+                message="Thank you for your purchase. You now have access to this case."
+                redirectPath={`/cases/${caseId}`}
+                redirectDelay={2500}
+              />
+            ) : hasAccess ? (
               <>
                 <Alert className="bg-green-50 dark:bg-green-900/20 border-green-500">
                   <AlertDescription className="text-green-600 dark:text-green-400">
@@ -110,7 +109,8 @@ export default function CaseDetailView({
                 <div className="p-6 border border-border rounded-lg">
                   <h3 className="text-lg font-medium mb-4">Case Details</h3>
                   <p className="text-muted-foreground mb-4">
-                    {detectiveCase.content || "Here you would display the full case details that are only available to users who have purchased the case."}
+                    {detectiveCase.content ||
+                      'Here you would display the full case details that are only available to users who have purchased the case.'}
                   </p>
                   <div className="p-4 bg-muted rounded-lg">
                     <p className="font-medium">Case Evidence #1</p>
@@ -120,13 +120,7 @@ export default function CaseDetailView({
                   </div>
                 </div>
               </>
-            ) : showSuccessMessage ? (
-              <PaymentSuccessMessage
-                message="Thank you for your purchase. You now have access to this case."
-                redirectPath={`/cases/${caseId}`}
-                redirectDelay={2500}
-              />
-            ) : showPaymentOptions ? (
+            ) : (
               <div className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-center font-medium">
@@ -154,9 +148,11 @@ export default function CaseDetailView({
                             Payment system error
                           </p>
                           <p className="text-sm text-muted-foreground mt-2 mb-4">
-                            {error instanceof Error ? error.message : 'An unexpected error occurred'}
+                            {error instanceof Error
+                              ? error.message
+                              : 'An unexpected error occurred'}
                           </p>
-                          <Button 
+                          <Button
                             onClick={resetErrorBoundary}
                             variant="outline"
                             size="sm"
@@ -165,9 +161,6 @@ export default function CaseDetailView({
                           </Button>
                         </div>
                       )}
-                      onReset={() => {
-                        console.log('Payment component error boundary reset');
-                      }}
                     >
                       <PayPalCheckout
                         detectiveCase={detectiveCase}
@@ -183,7 +176,9 @@ export default function CaseDetailView({
                     <Button
                       onClick={() =>
                         router.push(
-                          `/login?returnTo=${encodeURIComponent(`/cases/${caseId}`)}`
+                          `/login?returnTo=${encodeURIComponent(
+                            `/cases/${caseId}`
+                          )}`
                         )
                       }
                       className="w-full"
@@ -193,7 +188,7 @@ export default function CaseDetailView({
                   )}
                 </div>
               </div>
-            ) : null}
+            )}
           </CardContent>
         </Card>
       </div>
