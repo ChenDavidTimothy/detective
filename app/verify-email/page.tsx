@@ -1,40 +1,53 @@
-'use client';
+'use client'
 
-import { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import LoadingSpinner from '@/components/LoadingSpinner';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
+import LoadingSpinner from '@/components/LoadingSpinner'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 function VerifyEmailContent() {
-  const { user } = useAuth();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const email = searchParams.get('email');
-  const [countdown, setCountdown] = useState(60);
+  const { user } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const email = searchParams.get('email')
+  const [countdown, setCountdown] = useState(60)
 
   // Redirect if user is already verified
   useEffect(() => {
     if (user?.email_confirmed_at) {
-      router.replace('/dashboard');
+      router.replace('/dashboard')
     }
-  }, [user, router]);
+  }, [user, router])
 
   // Countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => clearInterval(timer)
+  }, [])
 
   const handleResendEmail = async () => {
     // Reset countdown
-    setCountdown(60);
-    // TODO: Implement resend verification email logic
-  };
+    setCountdown(60)
+    // This could use a server action to resend the verification email
+    try {
+      // Fetch to a server action or API route for resending verification
+      await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+    } catch (error) {
+      console.error('Failed to resend verification email:', error)
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -71,16 +84,16 @@ function VerifyEmailContent() {
 
         <CardFooter className="flex justify-center">
           <Button
-            onClick={() => router.push('/login')}
             variant="link"
             className="text-primary"
+            asChild
           >
-            ← Back to login
+            <Link href="/login">← Back to login</Link>
           </Button>
         </CardFooter>
       </Card>
     </div>
-  );
+  )
 }
 
 export default function VerifyEmailPage() {
@@ -88,5 +101,5 @@ export default function VerifyEmailPage() {
     <Suspense fallback={<LoadingSpinner />}>
       <VerifyEmailContent />
     </Suspense>
-  );
+  )
 }

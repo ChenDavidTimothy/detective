@@ -1,3 +1,4 @@
+// components/TopBar.tsx
 'use client';
 
 import { useState } from 'react';
@@ -8,21 +9,29 @@ import { ThemeToggle } from './ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { signOut } from '@/app/login/actions'; // Import the server action
 
 export default function TopBar() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
-      await signOut();
-      setIsLoggingOut(false);
+      
+      // Call the server action
+      const result = await signOut();
+      
+      if (result.success) {
+        // Handle navigation client-side
+        window.location.href = '/login';  // Using window.location for a full page refresh
+      } else {
+        throw new Error('Failed to sign out');
+      }
     } catch (error) {
       console.error('Logout failed:', error);
       alert('Failed to sign out. Please try again.');
-    } finally {
       setIsLoggingOut(false);
     }
   };

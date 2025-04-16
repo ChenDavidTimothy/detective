@@ -1,67 +1,44 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { login, signup, signInWithGoogle } from './actions';
 import { LoginForm } from '@/components/LoginForm';
-import { normalizeAuthError, type NormalizedAuthError } from '@/utils/auth-helpers';
+import { useRouter } from 'next/navigation';
+import { NormalizedAuthError, normalizeAuthError } from '@/utils/auth-helpers';
 
 export default function LoginPage() {
-  const { user, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const errorParam = searchParams.get('error');
-  const [error, setError] = useState<NormalizedAuthError | null>(null);
+  const [error, setError] = useState<NormalizedAuthError | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (errorParam === 'unknown') {
-      setError({
-        type: 'unknown',
-        message: "An error occurred during authentication. Please try again."
-      });
-    }
-  }, [errorParam]);
-
-  useEffect(() => {
-    if (user) {
-      router.replace('/dashboard');
-    } else {
-      setIsLoading(false);
-    }
-  }, [user, router]);
-
-  const handleSubmit = async (email: string, password: string, isSignUp: boolean) => {
-    setError(null);
+  const handleSubmit = async (
+    email: string,
+    password: string,
+    isSignUp: boolean
+  ) => {
+    setError(undefined);
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
-        const { data, error } = await signUpWithEmail(email, password);
-        if (error) {
-          setError(error);
-          setIsLoading(false);
-          return;
-        }
-        if (data?.user && !data.user.email_confirmed_at) {
-          router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
-          return;
-        }
-        router.replace('/dashboard');
+      const formData = new FormData();
+      formData.append('email', email);
+      formData.append('password', password);
+
+      const result = isSignUp
+        ? await signup(formData)
+        : await login(formData);
+
+      if (result?.error) {
+        setError(normalizeAuthError(result.error));
+        setIsLoading(false);
       } else {
-        try {
-          await signInWithEmail(email, password);
-          router.replace('/dashboard');
-        } catch (error) {
-          setError(
-            error as NormalizedAuthError ||
-            normalizeAuthError('Authentication failed')
-          );
-          setIsLoading(false);
-        }
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 300);
       }
-    } catch (error) {
-      setError(normalizeAuthError(error));
+    } catch (err) {
+      console.error('Auth error:', err);
+      setError(normalizeAuthError(err));
       setIsLoading(false);
     }
   };
@@ -69,20 +46,20 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
-      await signInWithGoogle();
-    } catch (error) {
-      setError(normalizeAuthError(error));
+      const { data, error } = await signInWithGoogle();
+
+      if (error) {
+        setError(normalizeAuthError(error));
+      } else if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Google sign in error:', err);
+      setError(normalizeAuthError(err));
+    } finally {
       setIsLoading(false);
     }
   };
-
-  if (isLoading && !error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 pt-16 pb-10">
@@ -91,7 +68,7 @@ export default function LoginPage() {
           onSubmit={handleSubmit}
           onGoogleSignIn={handleGoogleSignIn}
           isLoading={isLoading}
-          error={error || undefined}
+          error={error}
         />
       </div>
     </div>

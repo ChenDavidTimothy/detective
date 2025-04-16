@@ -1,132 +1,94 @@
-'use client';
+'use client'
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useSearchParams } from 'next/navigation';
-import LoadingSpinner from '@/components/LoadingSpinner';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useState } from 'react'
+import { resetPassword } from '@/app/login/actions'
+import { useSearchParams } from 'next/navigation'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import Link from 'next/link'
 
-function ResetPasswordContent() {
-  const { supabase } = useAuth();
-  const searchParams = useSearchParams();
-  const email = searchParams.get('email');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Using a ref to track if a reset attempt has been made
-  // This persists across re-renders without triggering them
-  const hasAttemptedResetRef = useRef(false);
+export default function ResetPasswordPage() {
+  const searchParams = useSearchParams()
+  const email = searchParams.get('email') || ''
+  const [emailInput, setEmailInput] = useState(email)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
-  // Use useCallback to memoize the function and prevent unnecessary re-renders
-  const handleResetPassword = useCallback(async () => {
-    if (!email) return;
-    
-    setIsLoading(true);
-    setError('');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/update-password#`,
-      });
+      const formData = new FormData()
+      formData.append('email', emailInput)
+      const result = await resetPassword(formData)
       
-      if (error) throw error;
-      setSuccess(true);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to send reset email');
-      
-      // If there was an error, allow the user to try again
-      hasAttemptedResetRef.current = false;
+      if (result.error) {
+        setError(result.error.message)
+      } else {
+        setSuccess(true)
+      }
+    } catch (err) {
+      setError('An unexpected error occurred')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [email, supabase]); // Include all dependencies used in the function
-
-  // Improved effect with proper dependencies including handleResetPassword
-  useEffect(() => {
-    // Only proceed if: 
-    // 1. We have an email
-    // 2. We haven't already attempted a reset
-    // 3. We're not currently loading
-    // 4. We haven't already succeeded
-    if (email && !hasAttemptedResetRef.current && !isLoading && !success) {
-      // Mark as attempted BEFORE making the async call
-      hasAttemptedResetRef.current = true;
-      handleResetPassword();
-    }
-  }, [email, isLoading, success, handleResetPassword]); // Include handleResetPassword in deps
-
-  if (!email) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <CardTitle>
-              Invalid Request
-            </CardTitle>
-            <CardDescription>
-              No email address provided. Please try the reset password link again.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="max-w-md w-full">
-        <CardHeader className="text-center">
-          <CardTitle>
-            Reset Password
-          </CardTitle>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Reset Password</CardTitle>
           <CardDescription>
-            Sending reset link to: <span className="font-medium">{email}</span>
+            Enter your email and we'll send you a link to reset your password.
           </CardDescription>
         </CardHeader>
-
-        <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>
-                {error}
-                <Button
-                  onClick={() => {
-                    hasAttemptedResetRef.current = true; // Set again before retry
-                    handleResetPassword();
-                  }}
-                  variant="link"
-                  className="ml-2 p-0 h-auto"
-                >
-                  Try again
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {success ? (
-            <Alert variant="default" className="border-green-500 bg-green-50 dark:bg-green-900/20">
-              <AlertDescription className="text-green-600 dark:text-green-400">
-                Reset link has been sent to your email address. Please check your inbox.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="text-center text-muted-foreground">
-              {isLoading ? 'Sending reset link...' : 'Processing your request...'}
-            </div>
-          )}
-        </CardContent>
+        
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {success ? (
+              <Alert className="border-green-500 bg-green-50 dark:bg-green-900/20">
+                <AlertDescription className="text-green-600 dark:text-green-400">
+                  Check your email for a link to reset your password.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+          </CardContent>
+          
+          <CardFooter className="flex justify-between">
+            <Button type="button" variant="outline" asChild>
+              <Link href="/login">Back to login</Link>
+            </Button>
+            
+            {!success && (
+              <Button type="submit" disabled={isLoading || !emailInput}>
+                {isLoading ? 'Sending...' : 'Send Reset Link'}
+              </Button>
+            )}
+          </CardFooter>
+        </form>
       </Card>
     </div>
-  );
-}
-
-export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <ResetPasswordContent />
-    </Suspense>
-  );
+  )
 }

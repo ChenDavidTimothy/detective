@@ -1,3 +1,4 @@
+// app/api/auth/resend-verification/route.ts
 import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -14,10 +15,11 @@ export async function POST(request: Request) {
     
     const supabase = await createClient()
     
-    // Check if the user exists
-    const { data, error } = await supabase.auth.admin.listUsers({
-      filters: {
-        email: email
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/dashboard`,
       }
     })
     
@@ -25,14 +27,11 @@ export async function POST(request: Request) {
       throw error
     }
     
-    const exists = data.users.length > 0
-    const provider = exists ? data.users[0].app_metadata?.provider : undefined
-    
-    return NextResponse.json({ exists, provider })
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error checking email:', error)
+    console.error('Error resending verification email:', error)
     return NextResponse.json(
-      { error: 'Failed to check email' }, 
+      { error: 'Failed to resend verification email' }, 
       { status: 500 }
     )
   }

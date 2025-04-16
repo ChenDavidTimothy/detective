@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { resetPassword } from '@/app/login/actions'; // Import the server action
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
@@ -14,24 +14,28 @@ interface ForgotPasswordModalProps {
 }
 
 export function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordModalProps) {
-  const { supabase } = useAuth();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleResetPassword = async () => {
-    if (isLoading) return;
+    if (isLoading || !email) return;
     
     setIsLoading(true);
     setError('');
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/update-password`,
-      });
-      if (error) throw error;
-      setSuccess(true);
+      // Call the server action with a FormData object
+      const formData = new FormData();
+      formData.append('email', email);
+      const result = await resetPassword(formData);
+      
+      if (result.error) {
+        setError(result.error.message);
+      } else {
+        setSuccess(true);
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to send reset email');
     } finally {

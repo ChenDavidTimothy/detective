@@ -1,204 +1,158 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useState, useEffect } from 'react'
+import { updatePassword } from '@/app/login/actions'
+import { createClient } from '@/utils/supabase/client'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useRouter } from 'next/navigation'
 
 export default function UpdatePasswordPage() {
-  const { supabase } = useAuth();
-  const router = useRouter();
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-
-  // Check for valid recovery session on mount
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [isAuthChecking, setIsAuthChecking] = useState(true)
+  const router = useRouter()
+  
+  // Check authentication on page load
   useEffect(() => {
-    const verifySession = async () => {
-      try {
-        // Let Supabase handle the auth flow automatically
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Session error:', error);
-          setError('Could not verify recovery session. Please request a new password reset link.');
-          return;
-        }
-        
-        if (!data.session) {
-          // No active session found
-          setError('No active recovery session found. Your link may have expired.');
-          return;
-        }
-        
-        // Session found - we're good to go
-        setError(null);
-      } catch (err) {
-        console.error('Verification error:', err);
-        setError('An error occurred during verification.');
-      } finally {
-        setIsCheckingAuth(false);
+    const checkAuth = async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.getUser()
+      
+      if (error || !data?.user) {
+        // If not authenticated, redirect to login
+        router.push('/login?error=password_reset_expired')
+      } else {
+        setIsAuthChecking(false)
       }
-    };
+    }
+    
+    checkAuth()
+  }, [router])
 
-    verifySession();
-  }, [supabase.auth]);
+  // Handle redirection after successful password update
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        router.push('/dashboard')
+      }, 2000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [success, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     
-    // Form validation
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+    if (password !== confirmPassword) {
+      setError("Passwords don't match")
+      return
     }
-
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
-    // Update password
-    setIsLoading(true);
-    setError(null);
+    
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const { error } = await supabase.auth.updateUser({ 
-        password: newPassword 
-      });
-
-      if (error) throw error;
+      const formData = new FormData()
+      formData.append('password', password)
       
-      // Success! Show success message
-      setSuccess(true);
+      const result = await updatePassword(formData)
       
-      // Schedule redirect after success
-      setTimeout(() => {
-        router.push('/login');
-      }, 2000);
+      if (result?.error) {
+        setError(result.error.message)
+        setIsLoading(false)
+      } else if (result?.success) {
+        setSuccess(true)
+        setIsLoading(false)
+      }
     } catch (err) {
-      console.error('Password update error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update password');
-    } finally {
-      setIsLoading(false);
+      setError('An unexpected error occurred')
+      setIsLoading(false)
     }
-  };
-
-  // Loading state during initial session check
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <CardTitle>Update Password</CardTitle>
-            <CardDescription>
-              Verifying your recovery session...
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </CardContent>
-        </Card>
-      </div>
-    );
   }
 
-  // Main form UI
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4 mx-auto"></div>
+          <p>Verifying your session...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="max-w-md w-full">
-        <CardHeader className="text-center">
-          <CardTitle>Update Password</CardTitle>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Update Your Password</CardTitle>
           <CardDescription>
-            Please enter your new password
+            Create a new password for your account
           </CardDescription>
         </CardHeader>
-
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertDescription>
-                {error}
-                <div className="mt-2">
-                  <Button
-                    onClick={() => router.push('/reset-password?email=')}
-                    variant="link"
-                    className="text-destructive p-0"
-                  >
-                    Request a new reset link
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {success ? (
-            <Alert variant="default" className="border-green-500 bg-green-50 dark:bg-green-900/20">
-              <AlertDescription className="text-green-600 dark:text-green-400">
-                <p>Password updated successfully!</p>
-                <p className="mt-2">Redirecting to login page...</p>
-                <div className="mt-4 flex justify-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 dark:border-green-400"></div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
+        
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {success && (
+              <Alert className="border-green-500 bg-green-50 dark:bg-green-900/20">
+                <AlertDescription className="text-green-600 dark:text-green-400">
+                  Password updated successfully! Redirecting to dashboard...
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {!success && (
+              <>
                 <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
                   <Input
-                    id="newPassword"
-                    name="newPassword"
                     type="password"
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="New Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
                     minLength={6}
-                    disabled={!!error}
                   />
                 </div>
+                
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
                   <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
                     type="password"
-                    required
+                    placeholder="Confirm Password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm Password"
+                    required
                     minLength={6}
-                    disabled={!!error}
                   />
                 </div>
-              </div>
-              <Button
-                type="submit"
-                disabled={isLoading || !!error}
+              </>
+            )}
+          </CardContent>
+          
+          <CardFooter>
+            {!success && (
+              <Button 
+                type="submit" 
                 className="w-full"
+                disabled={isLoading || !password || !confirmPassword}
               >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    <span>Updating...</span>
-                  </div>
-                ) : (
-                  'Update Password'
-                )}
+                {isLoading ? 'Updating...' : 'Update Password'}
               </Button>
-            </form>
-          )}
-        </CardContent>
+            )}
+          </CardFooter>
+        </form>
       </Card>
     </div>
-  );
+  )
 }
