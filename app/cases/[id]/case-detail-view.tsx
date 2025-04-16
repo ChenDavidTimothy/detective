@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DetectiveCase } from '@/lib/detective-cases';
 import { useCaseAccess } from '@/hooks/useCaseAccess';
 import { PayPalCheckout } from '@/components/PayPalCheckout';
-import { PaymentResult } from '@/components/PaymentResult';
+import { PaymentSuccessMessage } from '@/components/PaymentSuccessMessage';
 import {
   Card,
   CardContent,
@@ -28,15 +28,27 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
   const router = useRouter();
   const { user } = useAuth();
   const { hasAccess, isLoading, error, refresh } = useCaseAccess(caseId);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
+  // Add a separate flag to prevent content flash
+  const [isPaymentComplete, setIsPaymentComplete] = useState(false);
 
-  // When payment is successful, refresh access check
+  // When payment is successful, show success and redirect
   const handlePaymentSuccess = (details: Record<string, unknown>) => {
-    setPaymentSuccess(true);
-    refresh(); // Re-fetch access from Supabase
-    // Optionally, log details
     console.log('Payment completed successfully', details);
+    
+    // Mark payment as complete to prevent content flash
+    setIsPaymentComplete(true);
+    // Update status to show success UI
+    setPaymentStatus('success');
+    
+    // Refresh access in the background 
+    refresh();
   };
+
+  // Determine what to show
+  const showPaidContent = hasAccess && !isPaymentComplete;
+  const showPaymentOptions = !hasAccess && !isPaymentComplete;
+  const showSuccessMessage = isPaymentComplete && paymentStatus === 'success';
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,7 +94,7 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
-            ) : hasAccess ? (
+            ) : showPaidContent ? (
               <>
                 <Alert className="bg-green-50 dark:bg-green-900/20 border-green-500">
                   <AlertDescription className="text-green-600 dark:text-green-400">
@@ -104,7 +116,14 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                   </div>
                 </div>
               </>
-            ) : (
+            ) : showSuccessMessage ? (
+              // Use the new component for success message
+              <PaymentSuccessMessage
+                message="Thank you for your purchase. You now have access to this case."
+                redirectPath={`/cases/${caseId}`}
+                redirectDelay={2500}
+              />
+            ) : showPaymentOptions ? (
               <div className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-center font-medium">
@@ -119,14 +138,11 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                 )}
 
                 <div className="mt-4">
-                  {paymentSuccess ? (
-                    <PaymentResult 
-                      status="success"
-                      message="Thank you for your purchase! You now have access to this case."
-                      redirectPath={`/cases/${caseId}`}
-                      redirectLabel="View Case Details"
-                      autoRedirectSeconds={2}
-                    />
+                  {paymentStatus === 'processing' ? (
+                    <div className="flex items-center justify-center p-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
+                      <span>Processing payment...</span>
+                    </div>
                   ) : user ? (
                     <ErrorBoundary
                       fallbackRender={({ error, resetErrorBoundary }) => (
@@ -147,7 +163,6 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                         </div>
                       )}
                       onReset={() => {
-                        // Any cleanup needed when error boundary resets
                         console.log('Payment component error boundary reset');
                       }}
                     >
@@ -156,6 +171,7 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                         onSuccess={handlePaymentSuccess}
                         onError={(err) => {
                           console.error('Payment failed:', err);
+                          setPaymentStatus('idle');
                         }}
                       />
                     </ErrorBoundary>
@@ -174,7 +190,7 @@ export default function CaseDetailView({ detectiveCase, caseId }: CaseDetailView
                   )}
                 </div>
               </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </div>

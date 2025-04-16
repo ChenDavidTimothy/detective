@@ -4,12 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Suspense } from 'react';
-import LoadingSpinner from '@/components/LoadingSpinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DETECTIVE_CASES } from '@/lib/detective-cases';
-import { supabase } from '@/utils/supabase';
+import { createClient } from '@/utils/supabase/client';
 
 export default function ProfileClient() {
   const { user } = useAuth();
@@ -26,6 +24,7 @@ export default function ProfileClient() {
     // Fetch user's purchased cases from Supabase
     const fetchPurchasedCases = async () => {
       try {
+        const supabase = createClient();
         const { data, error } = await supabase
           .from('user_purchases')
           .select('case_id')

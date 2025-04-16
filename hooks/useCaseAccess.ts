@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/utils/supabase';
+import { createClient } from '@/utils/supabase/client';
 
 export function useCaseAccess(caseId: string) {
   const { user } = useAuth();
@@ -23,12 +23,15 @@ export function useCaseAccess(caseId: string) {
     setError(null);
 
     try {
+      // Create a fresh client for each check
+      const supabase = createClient();
+      
       const { data, error } = await supabase
         .from('user_purchases')
         .select('id')
         .eq('user_id', user.id)
         .eq('case_id', caseId)
-        .maybeSingle(); // Use maybeSingle for better error handling
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {  // PGRST116 is "not found"
         throw error;

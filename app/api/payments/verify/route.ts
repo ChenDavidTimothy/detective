@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabaseAdmin } from '@/utils/supabase-admin';
+import { createAdminClient } from '@/utils/supabase-admin';
 import { withCors } from '@/utils/cors';
 
 /**
@@ -55,6 +55,9 @@ export const POST = withCors(async function POST(request: NextRequest) {
     }
 
     console.log(`Verifying payment for order: ${orderId}, user: ${userId}, case: ${caseId}, amount: ${amount}`);
+
+    // Create a fresh admin client
+    const supabaseAdmin = createAdminClient();
 
     // Record the purchase using admin client
     try {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/utils/supabase';
+import { createClient } from '@/utils/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -71,7 +71,8 @@ export function OnboardingTour({ isFirstTime, onComplete }: OnboardingTourProps)
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
-      const user = (await supabase.auth.getUser()).data.user;
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         console.error('No user found');
@@ -118,7 +119,8 @@ export function OnboardingTour({ isFirstTime, onComplete }: OnboardingTourProps)
   const handleComplete = async () => {
     setIsOpen(false);
     
-    const user = (await supabase.auth.getUser()).data.user;
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
       console.error('No user found');

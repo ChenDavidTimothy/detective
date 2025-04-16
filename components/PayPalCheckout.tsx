@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePayPal } from '@/contexts/PayPalContext';
 import { DetectiveCase } from '@/lib/detective-cases';
-import { supabase } from '@/utils/supabase';
+import { createClient } from '@/utils/supabase/client';
 import {
   PayPalButtons,
   usePayPalScriptReducer
@@ -97,6 +97,7 @@ function PayPalButtonWrapper({
       console.log('Attempting direct database save as fallback');
       if (!user?.id) throw new Error('User not found');
       
+      const supabase = createClient();
       const { error } = await supabase
         .from('user_purchases')
         .upsert(
