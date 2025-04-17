@@ -1,15 +1,21 @@
+// app/api/payments/verify/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createAdminClient } from '@/utils/supabase-admin';
 import { withCors } from '@/utils/cors';
 
+interface VerifyPaymentRequest {
+  orderId: string;
+  userId: string;
+  caseId: string;
+  amount: number;
+}
+
 export const POST = withCors(async function POST(request: NextRequest) {
   try {
-    console.log('Payment verification request received');
-
-    let body;
+    let body: VerifyPaymentRequest;
     try {
-      body = await request.json();
+      body = await request.json() as VerifyPaymentRequest;
     } catch {
       return NextResponse.json(
         { success: false, error: 'Invalid JSON payload' },
@@ -17,7 +23,7 @@ export const POST = withCors(async function POST(request: NextRequest) {
       );
     }
 
-    const requiredFields = ['orderId', 'userId', 'caseId', 'amount'];
+    const requiredFields = ['orderId', 'userId', 'caseId', 'amount'] as const;
     for (const field of requiredFields) {
       if (!body?.[field]) {
         return NextResponse.json(
@@ -28,6 +34,7 @@ export const POST = withCors(async function POST(request: NextRequest) {
     }
 
     const { orderId, userId, caseId, amount } = body;
+    
     const parsedAmount = Number(amount);
     if (isNaN(parsedAmount)) {
       return NextResponse.json(
@@ -75,11 +82,4 @@ export const POST = withCors(async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-});
-
-export const GET = withCors(async function GET() {
-  return NextResponse.json({
-    status: 'ok',
-    message: 'Payment verification endpoint is operational',
-  });
 });

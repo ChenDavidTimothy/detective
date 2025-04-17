@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabaseAdmin } from '@/utils/supabase-admin';
+import { createAdminClient } from '@/utils/supabase-admin';
 import { withCors } from '@/utils/cors';
 
 // CORS wrapper for API route
@@ -13,6 +13,9 @@ export const DELETE = withCors(async (request: NextRequest) => {
     }
 
     console.log('Starting account soft-deletion for user:', userId);
+    
+    // Create the admin client - Fixed to use createAdminClient function
+    const supabaseAdmin = createAdminClient();
 
     // Soft delete the profile
     const { error: profileError } = await supabaseAdmin

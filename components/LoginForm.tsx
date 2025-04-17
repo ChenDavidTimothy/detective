@@ -3,12 +3,26 @@ import { ForgotPasswordModal } from './ForgotPasswordModal';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email);
+}
+
 interface LoginFormProps {
-  onSubmit: (email: string, password: string, isSignUp: boolean) => Promise<void>;
+  onSubmit: (
+    email: string,
+    password: string,
+    isSignUp: boolean
+  ) => Promise<void>;
   onGoogleSignIn: () => Promise<void>;
   isLoading: boolean;
   error?: string;
@@ -26,51 +40,41 @@ export function LoginForm({
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
-
-  // Used to detect autocomplete events
   const autocompleteRef = useRef(false);
 
-  const isValidEmail = (email: string): boolean =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-  // Unified email checking with debounce and autocomplete support
   useEffect(() => {
     if (!isSignUp || !isValidEmail(email)) return;
 
     let cancelled = false;
     setLocalError(null);
 
-    const check = async () => {
+    async function check() {
       setIsCheckingEmail(true);
       try {
-        const response = await fetch('/api/auth/check-email', {
+        const resp = await fetch('/api/auth/check-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email.trim() }),
         });
+        if (!resp.ok) return;
+        const ct = resp.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) return;
 
-        if (
-          !response.ok ||
-          !response.headers.get('content-type')?.includes('application/json')
-        )
-          return;
-
-        const data = await response.json();
-        if (data.exists) {
+        const data = await resp.json();
+        if (data.exists && !cancelled) {
           let msg = 'This email is already registered. Please sign in instead.';
           if (data.provider === 'google') {
             msg += ' You previously signed up with Google.';
           }
-          if (!cancelled) setLocalError(msg);
+          setLocalError(msg);
         }
-      } catch (err) {
-        // Silent fail
+      } catch {
+        // silent
       } finally {
         if (!cancelled) setIsCheckingEmail(false);
       }
-    };
+    }
 
-    // If triggered by autocomplete, check immediately; else debounce
     if (autocompleteRef.current) {
       autocompleteRef.current = false;
       check();
@@ -83,7 +87,7 @@ export function LoginForm({
     }
   }, [email, isSignUp]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValidEmail(email)) {
       setLocalError('Please enter a valid email address');
@@ -92,7 +96,7 @@ export function LoginForm({
     if (localError) return;
     setLocalError(null);
     await onSubmit(email.trim(), password, isSignUp);
-  };
+  }
 
   return (
     <Card className="w-full">
@@ -103,7 +107,9 @@ export function LoginForm({
         </div>
         {(localError || error) && (
           <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{localError || error}</AlertDescription>
+            <AlertDescription>
+              {localError || error}
+            </AlertDescription>
           </Alert>
         )}
       </CardHeader>
@@ -145,7 +151,7 @@ export function LoginForm({
                 type="email"
                 value={email}
                 onChange={(e) => {
-                  // Heuristic: if input is empty and new value contains '@', likely autocomplete
+                  // autocomplete detection
                   autocompleteRef.current =
                     email.length === 0 && e.target.value.includes('@');
                   setEmail(e.target.value);
@@ -214,7 +220,7 @@ export function LoginForm({
               'Sign up'
             ) : (
               'Sign in'
-            )}{' '}
+            )}
             with Email
           </Button>
 
