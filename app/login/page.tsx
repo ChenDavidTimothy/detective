@@ -1,9 +1,9 @@
-// app/login/page.tsx
 'use client';
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { login, signup, signInWithGoogle } from './actions';
+import { login, signup } from './actions';
+import { signInWithGoogle } from '@/utils/supabase/auth-actions';
 import { LoginForm } from '@/components/LoginForm';
 
 export default function LoginPage() {
@@ -46,22 +46,14 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
-      
-      // With the new implementation, signInWithGoogle doesn't return 
-      // a data object with a URL - it redirects automatically
       await signInWithGoogle(returnTo);
-      
-      // No need to manually redirect with window.location.href
-      // The redirect happens automatically via Supabase
-      
+      // No need to redirect manually or handle response - the OAuth flow 
+      // will handle the redirect automatically
     } catch (err) {
       console.error('Google sign in error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      setIsLoading(false); // Only reset loading on error
+      setIsLoading(false);
     }
-    
-    // Note: We don't need the finally block to reset isLoading
-    // because the page will redirect on success, so this component unmounts
   };
 
   return (

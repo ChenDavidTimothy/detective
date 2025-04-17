@@ -2,10 +2,10 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  // build our "fresh" response
+  // Build our "fresh" response
   const response = NextResponse.next({ request })
 
-  // instantiate Supabase with exactly this request's cookies
+  // Instantiate Supabase with exactly this request's cookies
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -21,13 +21,13 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // this will auto-refresh your session if expired,
+  // This will auto-refresh your session if expired,
   // and populate response.cookies
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // if it's a protected route and no user, kick them to login
+  // If it's a protected route and no user, kick them to login
   const publicRoutes = [
     '/',
     '/login',
@@ -35,6 +35,7 @@ export async function updateSession(request: NextRequest) {
     '/verify-email',
     '/reset-password',
     '/update-password',
+    '/cases',
   ]
   const isPublic = publicRoutes.some((r) =>
     request.nextUrl.pathname.startsWith(r)
