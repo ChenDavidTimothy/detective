@@ -2,7 +2,7 @@
 'use server'
 
 import { normalizeAuthError } from '@/utils/auth-helpers'
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/utils/supabase/client'
 import { createAdminClient } from '@/utils/supabase-admin'
 import { revalidatePath } from 'next/cache'
 
@@ -122,24 +122,17 @@ export async function signup(formData: FormData) {
   }
 }
 
-export async function signInWithGoogle(returnTo: string = '/dashboard') {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
+export async function signInWithGoogle(returnTo = '/dashboard') {
+  const supabase = createClient()
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=${encodeURIComponent(
+      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
         returnTo
       )}`,
     },
   })
-
-  console.log('← Supabase returned URL=', data?.url)
-  if (error) {
-    return { error: normalizeAuthError(error) }
-  }
-
-  return { data }
+  if (error) throw error
 }
 
 export async function resetPassword(formData: FormData) {
