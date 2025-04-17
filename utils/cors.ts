@@ -20,27 +20,35 @@ function getCorsHeaders(request: NextRequest) {
   };
 }
 
-type RouteContext = {
-  params: Record<string, string | string[]>;
-};
-
-type NextHandler = (
-  request: NextRequest,
-  context: RouteContext
-) => Promise<NextResponse>;
-
-export function withCors(handler: NextHandler): NextHandler {
-  return async function corsHandler(request, context) {
+// Simpler approach using Next.js route handler function type
+export function withCors(handler: (request: NextRequest) => Promise<Response>) {
+  return async function corsHandler(request: NextRequest): Promise<Response> {
+    // Handle preflight requests
     if (request.method === 'OPTIONS') {
-      return NextResponse.json({}, { headers: getCorsHeaders(request) });
+      return new NextResponse(null, {
+        status: 204,
+        headers: getCorsHeaders(request),
+      });
     }
 
-    const response = await handler(request, context);
+    // Call the original handler
+    const response = await handler(request);
+    
+    // Clone the response so we can modify headers
+    const newResponse = NextResponse.json(
+      await response.json(),
+      {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers
+      }
+    );
 
+    // Add CORS headers
     Object.entries(getCorsHeaders(request)).forEach(([key, value]) => {
-      response.headers.set(key, value);
+      newResponse.headers.set(key, value);
     });
 
-    return response;
+    return newResponse;
   };
 }

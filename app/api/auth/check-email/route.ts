@@ -3,10 +3,7 @@ import type { NextRequest } from 'next/server';
 import { createAdminClient } from '@/utils/supabase-admin';
 import { withCors } from '@/utils/cors';
 
-export const POST = withCors(async function POST(
-  request: NextRequest,
-  _context: { params: Record<string, string | string[]> }
-) {
+export const POST = withCors(async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
 

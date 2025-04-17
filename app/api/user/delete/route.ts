@@ -3,10 +3,7 @@ import type { NextRequest } from 'next/server';
 import { createAdminClient } from '@/utils/supabase-admin';
 import { withCors } from '@/utils/cors';
 
-export const DELETE = withCors(async function DELETE(
-  request: NextRequest,
-  _context: { params: Record<string, string | string[]> }
-) {
+export const DELETE = withCors(async function DELETE(request: NextRequest) {
   try {
     const userId = new URL(request.url).searchParams.get('userId');
 
@@ -16,7 +13,7 @@ export const DELETE = withCors(async function DELETE(
 
     console.log('Starting account soft-deletion for user:', userId);
     
-    // Create the admin client - Fixed to use createAdminClient function
+    // Create the admin client
     const supabaseAdmin = createAdminClient();
 
     // Soft delete the profile

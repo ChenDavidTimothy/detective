@@ -10,10 +10,7 @@ interface VerifyPaymentRequest {
   amount: number;
 }
 
-export const POST = withCors(async function POST(
-  request: NextRequest,
-  _context: { params: Record<string, string | string[]> }
-) {
+export const POST = withCors(async function POST(request: NextRequest) {
   try {
     let body: VerifyPaymentRequest;
     try {
