@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 function getCorsHeaders(request: NextRequest) {
   const allowedOrigins: ReadonlyArray<string> = [
     'http://localhost:3000',
-    'https://NextTemp.vercel.app',
+    'https://detective-5f6rvf69v-davids-projects-6c7fecce.vercel.app/',
   ];
   const origin = request.headers.get('origin') || '';
 
