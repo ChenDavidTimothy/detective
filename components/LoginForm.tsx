@@ -219,9 +219,9 @@ export function LoginForm({
                 {isSignUp ? 'Signing up...' : 'Signing in...'}
               </span>
             ) : isSignUp ? (
-              'Sign up'
+              'Sign up '
             ) : (
-              'Sign in'
+              'Sign in '
             )}
             with Email
           </Button>

@@ -110,7 +110,7 @@ export default function DashboardClient({
             </div>
             <h3 className="text-xl font-medium mb-2">No Cases Yet</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              You haven`&apos;`t purchased any detective cases yet. Browse our collection to find your first mystery to solve.
+              You haven&apos;t purchased any detective cases yet. Browse our collection to find your first mystery to solve.
             </p>
             <Button onClick={() => router.push('/cases')}>
               <ExternalLink className="h-4 w-4 mr-2" />
