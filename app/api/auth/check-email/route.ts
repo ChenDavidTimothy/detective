@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createAdminClient } from '@/utils/supabase-admin';
+import { createAdminClient } from '@/utils/supabase/supabase-admin';
 import { withCors } from '@/utils/cors';
 
 export const POST = withCors(async function POST(request: NextRequest) {

@@ -2,7 +2,7 @@
 
 import { normalizeAuthError } from '@/utils/auth-helpers'
 import { createClient } from '@/utils/supabase/server'
-import { createAdminClient } from '@/utils/supabase-admin'
+import { createAdminClient } from '@/utils/supabase/supabase-admin'
 import { revalidatePath } from 'next/cache'
 
 // Helper function for email validation
