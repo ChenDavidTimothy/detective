@@ -134,6 +134,7 @@ export async function signInWithGoogle(returnTo: string = '/dashboard') {
     },
   })
 
+  console.log('← Supabase returned URL=', data?.url)
   if (error) {
     return { error: normalizeAuthError(error) }
   }
