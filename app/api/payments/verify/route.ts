@@ -1,4 +1,3 @@
-// app/api/payments/verify/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createAdminClient } from '@/utils/supabase-admin';
@@ -11,7 +10,10 @@ interface VerifyPaymentRequest {
   amount: number;
 }
 
-export const POST = withCors(async function POST(request: NextRequest) {
+export const POST = withCors(async function POST(
+  request: NextRequest,
+  _context: { params: Record<string, string | string[]> }
+) {
   try {
     let body: VerifyPaymentRequest;
     try {

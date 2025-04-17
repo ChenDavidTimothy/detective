@@ -1,9 +1,12 @@
-// app/api/auth/check-email/route.ts
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { createAdminClient } from '@/utils/supabase-admin';
 import { withCors } from '@/utils/cors';
 
-export const POST = withCors(async function POST(request: Request) {
+export const POST = withCors(async function POST(
+  request: NextRequest,
+  _context: { params: Record<string, string | string[]> }
+) {
   try {
     const { email } = await request.json();
 

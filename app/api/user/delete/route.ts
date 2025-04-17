@@ -3,8 +3,10 @@ import type { NextRequest } from 'next/server';
 import { createAdminClient } from '@/utils/supabase-admin';
 import { withCors } from '@/utils/cors';
 
-// CORS wrapper for API route
-export const DELETE = withCors(async (request: NextRequest) => {
+export const DELETE = withCors(async function DELETE(
+  request: NextRequest,
+  _context: { params: Record<string, string | string[]> }
+) {
   try {
     const userId = new URL(request.url).searchParams.get('userId');
 
