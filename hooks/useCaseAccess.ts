@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { tryCatch, Result, isSuccess } from '@/utils/result';
 
 export function useCaseAccess(caseId: string, initialHasAccess = false) {
   const [hasAccess, setHasAccess] = useState<boolean>(initialHasAccess);
@@ -22,27 +23,33 @@ export function useCaseAccess(caseId: string, initialHasAccess = false) {
       setIsLoading(true);
       setError(null);
 
-      try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('user_purchases')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('case_id', caseId)
-          .maybeSingle();
+      const supabase = createClient();
+      const result = await tryCatch(
+        new Promise<boolean>((resolve, reject) => {
+          supabase
+            .from('user_purchases')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('case_id', caseId)
+            .maybeSingle()
+            .then(({ data, error }) => {
+              if (error && error.code !== 'PGRST116') {
+                reject(error);
+                return;
+              }
+              resolve(!!data);
+            });
+        })
+      );
 
-        if (error && error.code !== 'PGRST116') {
-          throw error;
-        }
-
-        setHasAccess(!!data);
-      } catch (err) {
-        console.error('Error checking case access:', err);
+      if (isSuccess(result)) {
+        setHasAccess(result.data);
+      } else {
+        console.error('Error checking case access:', result.error);
         setError('Failed to verify access to this case');
         setHasAccess(false);
-      } finally {
-        setIsLoading(false);
       }
+      setIsLoading(false);
     },
     [caseId]
   );

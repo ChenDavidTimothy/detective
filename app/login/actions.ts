@@ -4,6 +4,8 @@ import { normalizeAuthError } from '@/utils/auth-helpers'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/supabase-admin'
 import { revalidatePath } from 'next/cache'
+import { tryCatch, Result, isSuccess } from '@/utils/result'
+import type { User } from '@supabase/supabase-js'
 
 // Helper function for email validation
 function isValidEmail(email: string): boolean {
@@ -11,35 +13,126 @@ function isValidEmail(email: string): boolean {
   return emailRegex.test(email)
 }
 
-export async function login(formData: FormData) {
+interface LoginResult {
+  success: boolean;
+  redirectTo?: string;
+  error?: {
+    message: string;
+  };
+}
+
+const checkEmailExists = async (email: string): Promise<Result<{ exists: boolean; provider?: string }>> => {
+  const supabaseAdmin = await createAdminClient();
+  
+  // Check auth.users first
+  const authResult = await tryCatch(
+    new Promise<{ exists: boolean; provider?: string }>((resolve, reject) => {
+      supabaseAdmin.auth.admin.listUsers()
+        .then(({ data: authData, error: authError }) => {
+          if (authError) {
+            reject(authError);
+            return;
+          }
+
+          if (authData?.users?.length) {
+            const exactMatch = authData.users.find(
+              (user) => user.email?.toLowerCase() === email
+            );
+            if (exactMatch) {
+              resolve({
+                exists: true,
+                provider: exactMatch.app_metadata?.provider || 'email',
+              });
+              return;
+            }
+          }
+
+          resolve({ exists: false });
+        });
+    })
+  );
+
+  if (isSuccess(authResult)) {
+    return authResult;
+  }
+
+  // Fallback to public.users check
+  return tryCatch(
+    new Promise<{ exists: boolean; provider?: string }>((resolve, reject) => {
+      supabaseAdmin
+        .from('users')
+        .select('id, email')
+        .eq('email', email)
+        .limit(1)
+        .then(({ data, error }) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve({
+            exists: !!data?.length,
+            provider: data?.length ? 'unknown' : undefined,
+          });
+        });
+    })
+  );
+};
+
+export async function login(formData: FormData): Promise<LoginResult> {
   const supabase = await createClient()
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const returnTo = (formData.get('returnTo') as string) ?? '/dashboard'
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
-
-  if (error) {
-    if (error.message.includes('Email not confirmed')) {
+  // First check if the email exists and its provider
+  const emailCheck = await checkEmailExists(email)
+  if (isSuccess(emailCheck)) {
+    if (!emailCheck.data.exists) {
       return {
+        success: false,
+        error: {
+          message: 'No account found with this email. Please sign up instead.',
+        },
+      }
+    }
+    
+    if (emailCheck.data.provider === 'google') {
+      return {
+        success: false,
+        error: {
+          message: 'This email is associated with a Google account. Please sign in with Google instead.',
+        },
+      }
+    }
+  }
+
+  const result = await tryCatch(
+    supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+  )
+
+  if (!isSuccess(result)) {
+    if (result.error.message.includes('Email not confirmed')) {
+      return {
+        success: false,
         error: {
           message:
             'Your email has not been verified. Please check your inbox and click the verification link.',
         },
       }
     }
-    return { error: normalizeAuthError(error) }
+    return { success: false, error: normalizeAuthError(result.error) }
   }
 
   revalidatePath('/', 'layout')
   return { success: true, redirectTo: returnTo }
 }
 
-export async function signup(formData: FormData) {
+export async function signup(formData: FormData): Promise<LoginResult> {
   const supabase = await createClient()
   const supabaseAdmin = await createAdminClient()
 
@@ -49,43 +142,23 @@ export async function signup(formData: FormData) {
 
   if (!isValidEmail(email)) {
     return {
+      success: false,
       error: { message: 'Please enter a valid email address' },
     }
   }
 
-  try {
-    // Fetch all users (first page) and filter for the email
-    const { data: authData, error: authError } =
-      await supabaseAdmin.auth.admin.listUsers()
-
-    if (!authError && authData?.users?.length) {
-      const exactMatch = authData.users.find(
-        (user) => user.email?.toLowerCase() === email
-      )
-      if (exactMatch) {
-        const provider = exactMatch.app_metadata?.provider || 'email'
-        let errorMessage = 'Email already exists. Please sign in instead.'
-        if (provider === 'google') {
-          errorMessage += ' You previously signed up with Google.'
-        }
-        return { error: { message: errorMessage } }
-      }
+  const emailCheck = await checkEmailExists(email)
+  if (isSuccess(emailCheck) && emailCheck.data.exists) {
+    const provider = emailCheck.data.provider
+    let errorMessage = 'Email already exists. Please sign in instead.'
+    if (provider === 'google') {
+      errorMessage += ' You previously signed up with Google.'
     }
+    return { success: false, error: { message: errorMessage } }
+  }
 
-    // Fallback: check users table directly
-    const { data: existingUsers, error: checkError } = await supabaseAdmin
-      .from('users')
-      .select('id, email')
-      .eq('email', email)
-      .limit(1)
-
-    if (!checkError && existingUsers?.length) {
-      return {
-        error: { message: 'Email already exists. Please sign in instead.' },
-      }
-    }
-
-    const { data, error } = await supabase.auth.signUp({
+  const result = await tryCatch(
+    supabase.auth.signUp({
       email,
       password,
       options: {
@@ -94,55 +167,52 @@ export async function signup(formData: FormData) {
         )}`,
       },
     })
+  )
 
-    if (error) {
-      if (
-        error.message.includes('already') ||
-        error.message.includes('exist')
-      ) {
-        return {
-          error: { message: 'Email already exists. Please sign in instead.' },
-        }
-      }
-      return { error: normalizeAuthError(error) }
-    }
-
-    if (data?.user && !data.user.email_confirmed_at) {
+  if (!isSuccess(result)) {
+    if (
+      result.error.message.includes('already') ||
+      result.error.message.includes('exist')
+    ) {
       return {
-        success: true,
-        redirectTo: `/verify-email?email=${encodeURIComponent(email)}`,
+        success: false,
+        error: { message: 'Email already exists. Please sign in instead.' },
       }
     }
-
-    revalidatePath('/', 'layout')
-    return { success: true, redirectTo: returnTo }
-  } catch (error) {
-    return { error: normalizeAuthError(error) }
+    return { success: false, error: normalizeAuthError(result.error) }
   }
+
+  if (result.data.data?.user && !result.data.data.user.email_confirmed_at) {
+    return {
+      success: true,
+      redirectTo: `/verify-email?email=${encodeURIComponent(email)}`,
+    }
+  }
+
+  revalidatePath('/', 'layout')
+  return { success: true, redirectTo: returnTo }
 }
 
-export async function resetPassword(formData: FormData) {
+export async function resetPassword(formData: FormData): Promise<LoginResult> {
   const supabase = await createClient()
 
   const email = formData.get('email') as string
 
   if (!email) {
-    return { error: { message: 'Email is required' } }
+    return { success: false, error: { message: 'Email is required' } }
   }
 
-  try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  const result = await tryCatch(
+    supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery`,
     })
+  )
 
-    if (error) {
-      return { error: normalizeAuthError(error) }
-    }
-
-    return { success: true }
-  } catch {
-    return { error: { message: 'Failed to send reset email' } }
+  if (!isSuccess(result)) {
+    return { success: false, error: normalizeAuthError(result.error) }
   }
+
+  return { success: true }
 }
 
 export async function updatePassword(formData: FormData) {

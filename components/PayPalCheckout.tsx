@@ -23,6 +23,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { usePayPal } from '@/contexts/PayPalContext';
+import { tryCatch, Result, isSuccess, isFailure } from '@/utils/result';
 
 interface PayPalCheckoutProps {
   detectiveCase: DetectiveCase;
@@ -51,15 +52,15 @@ export function PayPalCheckout({
       return;
     }
     const fetchUser = async (): Promise<void> => {
-      try {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
-        setUser(data.user);
-      } catch (fetchErr) {
-        console.error('Error fetching user:', fetchErr);
-      } finally {
-        setIsLoading(false);
+      const supabase = createClient();
+      const result = await tryCatch(supabase.auth.getUser());
+      
+      if (isSuccess(result)) {
+        setUser(result.data.data.user);
+      } else {
+        console.error('Error fetching user:', result.error);
       }
+      setIsLoading(false);
     };
     fetchUser();
   }, [userId]);
@@ -92,27 +93,40 @@ export function PayPalCheckout({
 
   // Fallback direct DB save
   const savePurchaseDirectly = useCallback(
-    async (orderId: string): Promise<boolean> => {
-      try {
-        if (!effectiveUserId) throw new Error('User not found');
-        const supabase = createClient();
-        const { error } = await supabase
-          .from('user_purchases')
-          .upsert(
-            {
-              user_id: effectiveUserId,
-              case_id: detectiveCase.id,
-              payment_id: orderId,
-              amount: detectiveCase.price,
-              notes: 'Saved directly due to verification failure',
-            },
-            { onConflict: 'user_id,case_id' }
-          );
-        if (error) throw error;
-        return true;
-      } catch {
-        return false;
+    async (orderId: string): Promise<Result<boolean>> => {
+      if (!effectiveUserId) {
+        return { data: null, error: new Error('User not found') };
       }
+
+      const supabase = createClient();
+      const result = await tryCatch(
+        new Promise<boolean>((resolve, reject) => {
+          supabase
+            .from('user_purchases')
+            .upsert(
+              {
+                user_id: effectiveUserId,
+                case_id: detectiveCase.id,
+                payment_id: orderId,
+                amount: detectiveCase.price,
+                notes: 'Saved directly due to verification failure',
+              },
+              { onConflict: 'user_id,case_id' }
+            )
+            .then(({ error }) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(true);
+              }
+            });
+        })
+      );
+
+      if (isSuccess(result)) {
+        return { data: result.data, error: null };
+      }
+      return { data: null, error: result.error };
     },
     [effectiveUserId, detectiveCase.id, detectiveCase.price]
   );
@@ -129,15 +143,20 @@ export function PayPalCheckout({
               30000
             )
           );
-          const details = await Promise.race([
-            actions.order!.capture(),
-            timeoutPromise,
-          ]);
+          const captureResult = await tryCatch(
+            Promise.race([
+              actions.order!.capture(),
+              timeoutPromise,
+            ])
+          );
+
+          if (isFailure(captureResult)) {
+            throw captureResult.error;
+          }
 
           // Verify on your server
-          let verificationSuccess = false;
-          try {
-            const resp = await fetch('/api/payments/verify', {
+          const verificationResult = await tryCatch(
+            fetch('/api/payments/verify', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -146,23 +165,28 @@ export function PayPalCheckout({
                 caseId: detectiveCase.id,
                 amount: detectiveCase.price,
               }),
-            });
-            const ct = resp.headers.get('content-type') ?? '';
+            })
+          );
+
+          let verificationSuccess = false;
+          if (isSuccess(verificationResult)) {
+            const ct = verificationResult.data.headers.get('content-type') ?? '';
             if (!ct.includes('application/json')) {
               throw new Error(
-                `Non-JSON response: ${await resp.text()}`
+                `Non-JSON response: ${await verificationResult.data.text()}`
               );
             }
-            const json = await resp.json();
-            if (!resp.ok) throw new Error(json.error || 'Unknown');
+            const json = await verificationResult.data.json();
+            if (!verificationResult.data.ok) {
+              throw new Error(json.error || 'Unknown');
+            }
             verificationSuccess = true;
-          } catch {
-            verificationSuccess = await savePurchaseDirectly(
-              data.orderID
-            );
+          } else {
+            const fallbackResult = await savePurchaseDirectly(data.orderID);
+            verificationSuccess = isSuccess(fallbackResult) && fallbackResult.data;
           }
 
-          onSuccess?.({ ...details, verificationSuccess });
+          onSuccess?.({ ...captureResult.data, verificationSuccess });
         } catch (err) {
           let msg = 'Payment processing failed. Please try again.';
           if (

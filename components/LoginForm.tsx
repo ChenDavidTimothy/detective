@@ -108,9 +108,22 @@ export function LoginForm({
           <CardTitle className="text-2xl font-medium">NextTemp</CardTitle>
         </div>
         {(localError || error) && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant={error?.includes('Google') ? "default" : "destructive"} className="mb-4">
             <AlertDescription>
               {localError || error}
+              {error?.includes('No account found') && (
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={() => setIsSignUp(true)}
+                    className="text-sm p-0 h-auto"
+                    disabled={isLoading}
+                  >
+                    Click here to sign up
+                  </Button>
+                </div>
+              )}
             </AlertDescription>
           </Alert>
         )}

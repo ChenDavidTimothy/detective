@@ -14,11 +14,16 @@ export default async function DashboardPage() {
   const { data } = await supabase.auth.getUser();
   const user = data.user; // Already verified by protected layout
   
+  // If there's no user, return empty cases array
+  if (!user?.id) {
+    return <DashboardClient initialUserData={user} userCases={[]} />;
+  }
+  
   // Fetch user's purchased cases
   const { data: purchasedCases, error } = await supabase
     .from('user_purchases')
     .select('case_id, purchase_date')
-    .eq('user_id', user?.id || '');
+    .eq('user_id', user.id);
   
   if (error) {
     console.error('Error fetching purchased cases:', error);
