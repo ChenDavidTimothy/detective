@@ -35,6 +35,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: "Case Not Found",
       description: "The detective case you are looking for could not be found.",
+      robots: {
+        index: false,
+        follow: true,
+      },
     };
   }
   
@@ -44,13 +48,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: detectiveCase.title,
       description: detectiveCase.description,
-      images: [detectiveCase.imageUrl || '/images/default-case-og.png'],
+      images: [
+        ...(detectiveCase.imageUrl ? [{
+          url: detectiveCase.imageUrl,
+          width: 1200,
+          height: 630,
+          alt: detectiveCase.title,
+        }] : []),
+        {
+          url: '/opengraph-image',
+          width: 1200,
+          height: 630,
+          alt: 'Detective Cases - Solve Mysteries Online',
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title: detectiveCase.title,
       description: detectiveCase.description,
-      images: [detectiveCase.imageUrl || '/images/default-case-og.png'],
+      images: [
+        ...(detectiveCase.imageUrl ? [detectiveCase.imageUrl] : []),
+        '/opengraph-image',
+      ],
     },
     alternates: {
       canonical: `${process.env.NEXT_PUBLIC_APP_URL}/cases/${resolvedParams.id}`,

@@ -6,7 +6,20 @@ export const metadata: Metadata = {
   title: "Detective Cases - Solve Mysteries Online",
   description: "Explore and solve interactive detective cases. Purchase mysteries, analyze evidence, and become the detective in immersive online investigations.",
   openGraph: {
-    images: ['/images/home-og.png'],
+    images: [
+      {
+        url: '/images/home-og.png',
+        width: 1200,
+        height: 630,
+        alt: 'Detective Cases - Solve Mysteries Online',
+      },
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'Detective Cases - Solve Mysteries Online',
+      },
+    ],
   },
 };
 
