@@ -29,23 +29,20 @@ export function useCaseAccess(caseId: string, initialHasAccess = false) {
       setError(null);
 
       const supabase = createClient();
-      const result = await tryCatch(
-        new Promise<boolean>((resolve, reject) => {
-          supabase
-            .from('user_purchases')
-            .select('id, user_id')
-            .eq('user_id', userId)
-            .eq('case_id', caseId)
-            .maybeSingle()
-            .then(({ data, error }) => {
-              if (error && error.code !== 'PGRST116') {
-                reject(error);
-                return;
-              }
-              resolve(!!data);
-            });
-        })
-      );
+      const { data, error: queryError } = await supabase
+        .from('user_purchases')
+        .select('id, user_id')
+        .eq('user_id', userId)
+        .eq('case_id', caseId)
+        .maybeSingle();
+
+      let result: Result<boolean>;
+      if (queryError && queryError.code !== 'PGRST116') {
+        console.error('Supabase query error in checkAccess:', queryError);
+        result = { data: null, error: queryError };
+      } else {
+        result = { data: !!data, error: null };
+      }
 
       if (isSuccess(result)) {
         setHasAccess(result.data);

@@ -28,57 +28,52 @@ const validateEmail = (email: string): Result<string> => {
 
 const checkAuthUsers = async (email: string): Promise<Result<CheckEmailResponse>> => {
   const supabaseAdmin = createAdminClient();
-  return tryCatch(
-    new Promise<CheckEmailResponse>((resolve, reject) => {
-      supabaseAdmin.auth.admin.listUsers()
-        .then(({ data: authData, error: authError }) => {
-          if (authError) {
-            reject(authError);
-            return;
-          }
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
 
-          if (authData?.users) {
-            const exactMatch = authData.users.find(
-              user => user.email?.toLowerCase() === email
-            );
+  if (authError) {
+    console.error('Error listing auth users:', authError);
+    return { data: null, error: authError };
+  }
 
-            if (exactMatch) {
-              resolve({
-                exists: true,
-                provider: exactMatch.app_metadata?.provider || 'email',
-              });
-              return;
-            }
-          }
+  if (authData?.users) {
+    const exactMatch = authData.users.find(
+      user => user.email?.toLowerCase() === email
+    );
 
-          resolve({ exists: false, provider: null });
-        });
-    })
-  );
+    if (exactMatch) {
+      return {
+        data: {
+          exists: true,
+          provider: exactMatch.app_metadata?.provider || 'email',
+        },
+        error: null,
+      };
+    }
+  }
+
+  return { data: { exists: false, provider: null }, error: null };
 };
 
 const checkPublicUsers = async (email: string): Promise<Result<CheckEmailResponse>> => {
   const supabaseAdmin = createAdminClient();
-  return tryCatch(
-    new Promise<CheckEmailResponse>((resolve, reject) => {
-      supabaseAdmin
-        .from('users')
-        .select('id, email')
-        .eq('email', email)
-        .limit(1)
-        .then(({ data, error }) => {
-          if (error) {
-            reject(error);
-            return;
-          }
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .select('id, email')
+    .eq('email', email)
+    .limit(1);
 
-          resolve({
-            exists: !!data?.length,
-            provider: data?.length ? 'unknown' : null,
-          });
-        });
-    })
-  );
+  if (error) {
+    console.error('Error querying public users:', error);
+    return { data: null, error };
+  }
+
+  return {
+    data: {
+      exists: !!data?.length,
+      provider: data?.length ? 'unknown' : null,
+    },
+    error: null,
+  };
 };
 
 export const POST = withCors(async function POST(request: NextRequest) {

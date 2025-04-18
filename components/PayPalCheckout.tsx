@@ -99,34 +99,29 @@ export function PayPalCheckout({
       }
 
       const supabase = createClient();
-      const result = await tryCatch(
-        new Promise<boolean>((resolve, reject) => {
-          supabase
-            .from('user_purchases')
-            .upsert(
-              {
-                user_id: effectiveUserId,
-                case_id: detectiveCase.id,
-                payment_id: orderId,
-                amount: detectiveCase.price,
-                notes: 'Saved directly due to verification failure',
-              },
-              { onConflict: 'user_id,case_id' }
-            )
-            .then(({ error }) => {
-              if (error) {
-                reject(error);
-              } else {
-                resolve(true);
-              }
-            });
-        })
-      );
+      // Directly await the upsert operation
+      const { data, error } = await supabase
+        .from('user_purchases')
+        .upsert(
+          {
+            user_id: effectiveUserId,
+            case_id: detectiveCase.id,
+            payment_id: orderId,
+            amount: detectiveCase.price,
+            notes: 'Saved directly due to verification failure',
+          },
+          { onConflict: 'user_id,case_id' }
+        )
+        .select('user_id') // Select something small to confirm success
+        .single(); // Ensure we expect one row or null
 
-      if (isSuccess(result)) {
-        return { data: result.data, error: null };
+      // Construct the Result object based on the Supabase response
+      if (error) {
+        console.error('Direct save failed:', error);
+        return { data: null, error };
       }
-      return { data: null, error: result.error };
+      // Consider success if no error occurred
+      return { data: true, error: null }; 
     },
     [effectiveUserId, detectiveCase.id, detectiveCase.price]
   );
