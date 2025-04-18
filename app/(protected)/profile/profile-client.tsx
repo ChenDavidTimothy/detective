@@ -13,14 +13,22 @@ interface PurchasedCase {
   purchase_date?: string;
 }
 
+interface UserPreferences {
+  id: string;
+  user_id: string;
+  has_completed_onboarding: boolean;
+}
+
 interface ProfileClientProps {
   initialUserData: User | null;
   initialPurchasedCases: PurchasedCase[];
+  initialPreferences: UserPreferences;
 }
 
 export default function ProfileClient({
   initialUserData,
   initialPurchasedCases,
+  initialPreferences,
 }: ProfileClientProps) {
   const router = useRouter();
 

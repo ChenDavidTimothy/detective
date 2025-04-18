@@ -2,7 +2,30 @@
 import type { Metadata } from "next";
 import { createClient } from '@/utils/supabase/server';
 import DashboardClient from "./dashboard-client";
-import { DETECTIVE_CASES } from "@/lib/detective-cases";
+import { User } from '@supabase/supabase-js';
+
+type Difficulty = 'easy' | 'medium' | 'hard';
+
+interface CaseDetails {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  difficulty: Difficulty;
+  image_url: string;
+}
+
+interface PurchasedCase {
+  case_id: string;
+  purchase_date: string;
+  details: CaseDetails;
+}
+
+interface SupabasePurchase {
+  case_id: string;
+  purchase_date: string;
+  case: CaseDetails;
+}
 
 export const metadata: Metadata = {
   title: "Your Detective Cases",
@@ -11,32 +34,38 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const user = data.user; // Already verified by protected layout
   
-  // If there's no user, return empty cases array
+  // First get the user
+  const { data: { user } } = await supabase.auth.getUser();
+  
   if (!user?.id) {
     return <DashboardClient initialUserData={user} userCases={[]} />;
   }
-  
-  // Fetch user's purchased cases
-  const { data: purchasedCases, error } = await supabase
+
+  // Then fetch their cases in a single query
+  const { data: cases } = await supabase
     .from('user_purchases')
-    .select('case_id, purchase_date')
-    .eq('user_id', user.id);
-  
-  if (error) {
-    console.error('Error fetching purchased cases:', error);
-  }
-  
-  // Map purchased case IDs to actual case details
-  const userCases = (purchasedCases || []).map(purchase => {
-    const caseDetails = DETECTIVE_CASES.find(c => c.id === purchase.case_id);
-    return {
-      ...purchase,
-      details: caseDetails
-    };
-  }).filter(c => c.details); // Filter out any cases that don't have matching details
-  
+    .select(`
+      case_id,
+      purchase_date,
+      case:detective_cases!user_purchases_case_id_fkey (
+        id,
+        title,
+        description,
+        price,
+        difficulty,
+        image_url
+      )
+    `)
+    .eq('user_id', user.id)
+    .order('purchase_date', { ascending: false });
+
+  // Transform the data to match the expected format
+  const userCases: PurchasedCase[] = (cases as SupabasePurchase[] | null)?.map(purchase => ({
+    case_id: purchase.case_id,
+    purchase_date: purchase.purchase_date,
+    details: purchase.case
+  })) || [];
+
   return <DashboardClient initialUserData={user} userCases={userCases} />;
 }

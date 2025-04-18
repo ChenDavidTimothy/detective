@@ -5,6 +5,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { tryCatch, Result, isSuccess } from '@/utils/result';
 
+interface CaseAccess {
+  id: string;
+  user_id: string;
+}
+
 export function useCaseAccess(caseId: string, initialHasAccess = false) {
   const [hasAccess, setHasAccess] = useState<boolean>(initialHasAccess);
   const [isLoading, setIsLoading] = useState<boolean>(!initialHasAccess);
@@ -28,7 +33,7 @@ export function useCaseAccess(caseId: string, initialHasAccess = false) {
         new Promise<boolean>((resolve, reject) => {
           supabase
             .from('user_purchases')
-            .select('id')
+            .select('id, user_id')
             .eq('user_id', userId)
             .eq('case_id', caseId)
             .maybeSingle()
