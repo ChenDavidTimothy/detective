@@ -3,9 +3,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DetectiveCase } from '@/lib/detective-cases';
-import { PaymentSuccessMessage } from '@/components/PaymentSuccessMessage';
+import { DetectiveCase } from "@/lib/types/detective-case";
 import { useCaseAccess } from '@/hooks/useCaseAccess';
+import { PaymentSuccessMessage } from '@/components/PaymentSuccessMessage';
 import {
   Card,
   CardContent,

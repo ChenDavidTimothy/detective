@@ -6,7 +6,7 @@ import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DetectiveCase } from "@/lib/detective-cases";
+import { DetectiveCase } from "@/lib/types/detective-case";
 import { motion } from "framer-motion";
 import { FileText, ExternalLink } from "lucide-react";
 

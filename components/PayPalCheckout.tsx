@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
-import type { DetectiveCase } from '@/lib/detective-cases';
+import { DetectiveCase } from '@/lib/types/detective-case';
 
 import {
   PayPalButtons,
