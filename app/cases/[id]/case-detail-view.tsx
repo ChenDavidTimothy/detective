@@ -4,7 +4,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DetectiveCase } from '@/lib/detective-cases';
-import { PayPalCheckout } from '@/components/PayPalCheckout';
 import { PaymentSuccessMessage } from '@/components/PaymentSuccessMessage';
 import { useCaseAccess } from '@/hooks/useCaseAccess';
 import {
@@ -18,6 +17,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ErrorBoundary } from 'react-error-boundary';
+import dynamic from 'next/dynamic';
+
+// Dynamically import PayPalCheckout to reduce main bundle size
+const PayPalCheckout = dynamic(
+  () => import('@/components/PayPalCheckout').then(mod => mod.PayPalCheckout),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center p-6">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
+        <span>Loading payment options...</span>
+      </div>
+    )
+  }
+);
 
 type CaseDetailViewProps = {
   detectiveCase: DetectiveCase;

@@ -12,6 +12,21 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
+// Server action for checking case access
+async function checkCaseAccess(caseId: string, userId?: string) {
+  if (!userId) return { hasAccess: false };
+  
+  const supabase = await createClient();
+  const { data: purchaseData } = await supabase
+    .from('user_purchases')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('case_id', caseId)
+    .maybeSingle();
+    
+  return { hasAccess: !!purchaseData };
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const detectiveCase = getCaseById(resolvedParams.id);
@@ -49,20 +64,6 @@ export function generateStaticParams() {
   }));
 }
 
-async function CaseAccess({ caseId, userId }: { caseId: string; userId?: string }) {
-  if (!userId) return { hasAccess: false };
-  
-  const supabase = await createClient();
-  const { data: purchaseData } = await supabase
-    .from('user_purchases')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('case_id', caseId)
-    .maybeSingle();
-    
-  return { hasAccess: !!purchaseData };
-}
-
 export default async function CaseDetailPage({ params }: Props) {
   const resolvedParams = await params;
   const caseId = resolvedParams.id;
@@ -71,15 +72,10 @@ export default async function CaseDetailPage({ params }: Props) {
   if (!detectiveCase) {
     notFound();
   }
-  
+
   const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
-  
-  // Parallelize data fetching
-  const [accessData] = await Promise.all([
-    CaseAccess({ caseId, userId: user?.id })
-  ]);
+  const { data: authData } = await supabase.auth.getUser();
+  const accessData = await checkCaseAccess(caseId, authData?.user?.id);
   
   return (
     <>
@@ -94,7 +90,7 @@ export default async function CaseDetailPage({ params }: Props) {
           detectiveCase={detectiveCase} 
           caseId={caseId} 
           initialHasAccess={accessData.hasAccess}
-          userId={user?.id}
+          userId={authData?.user?.id}
         />
       </Suspense>
     </>
