@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/supabase-admin'
 import { revalidatePath } from 'next/cache'
 import { tryCatch, Result, isSuccess } from '@/utils/result'
-import type { User } from '@supabase/supabase-js'
+// Removed the unused User import
 
 // Helper function for email validation
 function isValidEmail(email: string): boolean {
@@ -134,7 +134,7 @@ export async function login(formData: FormData): Promise<LoginResult> {
 
 export async function signup(formData: FormData): Promise<LoginResult> {
   const supabase = await createClient()
-  const supabaseAdmin = await createAdminClient()
+  // Removed the unused supabaseAdmin variable since it's not used below
 
   const email = (formData.get('email') as string)?.toLowerCase().trim()
   const password = formData.get('password') as string
