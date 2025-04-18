@@ -1,17 +1,15 @@
 // components/PayPalCheckout.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import type { User } from '@supabase/supabase-js';
-import { DetectiveCase } from '@/lib/types/detective-case';
+import type { DetectiveCase } from '@/lib/types/detective-case';
 
 import {
   PayPalButtons,
   usePayPalScriptReducer,
   type PayPalButtonsComponentProps,
 } from '@paypal/react-paypal-js';
-
 import type {
   CreateOrderData,
   CreateOrderActions,
@@ -23,7 +21,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { usePayPal } from '@/contexts/PayPalContext';
-import { tryCatch, Result, isSuccess, isFailure } from '@/utils/result';
+import { tryCatch, isSuccess, isFailure, type Result } from '@/utils/result';
 
 interface PayPalCheckoutProps {
   detectiveCase: DetectiveCase;
@@ -38,40 +36,46 @@ export function PayPalCheckout({
   onSuccess,
   onError,
 }: PayPalCheckoutProps) {
-  const [user, setUser] = useState<User | null>(null);
+  // supabase client once
+  const supabase = useMemo(() => createClient(), []);
+
+  // unify external or fetched user ID
+  const [effectiveUserId, setEffectiveUserId] = useState<string | undefined>(
+    userId
+  );
   const [isLoading, setIsLoading] = useState(!userId);
-  const { clientId } = usePayPal();
+
+  // PayPal script state
   const [{ isPending, isRejected }] = usePayPalScriptReducer();
+  const { clientId } = usePayPal();
+
+  // UI state
   const [isProcessing, setIsProcessing] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // Fetch current user if no userId prop
+  // fetch current user ID if none provided
   useEffect(() => {
     if (userId) {
       setIsLoading(false);
       return;
     }
-    const fetchUser = async (): Promise<void> => {
-      const supabase = createClient();
+    const fetchUser = async () => {
       const result = await tryCatch(supabase.auth.getUser());
-      
       if (isSuccess(result)) {
-        setUser(result.data.data.user);
+        setEffectiveUserId(result.data.data.user?.id ?? undefined);
       } else {
         console.error('Error fetching user:', result.error);
       }
       setIsLoading(false);
     };
     fetchUser();
-  }, [userId]);
+  }, [userId, supabase]);
 
-  const effectiveUserId = userId ?? user?.id;
-
-  // Create order: note the required `intent: 'CAPTURE'`
+  // PAYPAL: createOrder
   const createOrder: PayPalButtonsComponentProps['createOrder'] =
     useCallback(
-      (data: CreateOrderData, actions: CreateOrderActions) => {
-        return actions.order!.create({
+      (_: CreateOrderData, actions: CreateOrderActions) =>
+        actions.order!.create({
           intent: 'CAPTURE',
           purchase_units: [
             {
@@ -86,21 +90,17 @@ export function PayPalCheckout({
             shipping_preference: 'NO_SHIPPING',
             user_action: 'PAY_NOW',
           },
-        });
-      },
+        }),
       [detectiveCase.title, detectiveCase.price]
     );
 
-  // Fallback direct DB save
+  // fallback direct DB save
   const savePurchaseDirectly = useCallback(
     async (orderId: string): Promise<Result<boolean>> => {
       if (!effectiveUserId) {
         return { data: null, error: new Error('User not found') };
       }
-
-      const supabase = createClient();
-      // Directly await the upsert operation
-      const { data: _data, error } = await supabase
+      const { error } = await supabase
         .from('user_purchases')
         .upsert(
           {
@@ -111,164 +111,114 @@ export function PayPalCheckout({
             notes: 'Saved directly due to verification failure',
           },
           { onConflict: 'user_id,case_id' }
-        )
-        .select('user_id') // Select something small to confirm success
-        .single(); // Ensure we expect one row or null
-
-      // Construct the Result object based on the Supabase response
+        );
       if (error) {
         console.error('Direct save failed:', error);
         return { data: null, error };
       }
-      // Consider success if no error occurred
-      return { data: true, error: null }; 
+      return { data: true, error: null };
     },
-    [effectiveUserId, detectiveCase.id, detectiveCase.price]
+    [supabase, effectiveUserId, detectiveCase]
   );
 
-  // Handle approval
-const handleApprove: PayPalButtonsComponentProps['onApprove'] =
-  useCallback(
-    async (data: OnApproveData, actions: OnApproveActions) => {
-      setIsProcessing(true);
-      
-      // Create timeout promise
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('Payment processing timeout')),
-          30000
-        )
-      );
-      
-      // Capture the order with timeout
-      const captureResult = await tryCatch(
-        Promise.race([
-          actions.order!.capture(),
-          timeoutPromise,
-        ])
-      );
+  // onApprove handler
+  const handleApprove: PayPalButtonsComponentProps['onApprove'] =
+    useCallback(
+      async (data: OnApproveData, actions: OnApproveActions) => {
+        setIsProcessing(true);
 
-      if (isFailure(captureResult)) {
-        const error = captureResult.error;
-        let msg = 'Payment processing failed. Please try again.';
-        
-        if (error instanceof Error && error.message.includes('Window closed')) {
-          msg = "Payment window was closed. Please try again when you're ready.";
+        // capture with 30s timeout
+        const timeout = new Promise<never>((_, rej) =>
+          setTimeout(() => rej(new Error('Payment processing timeout')), 30000)
+        );
+        const captureResult = await tryCatch(
+          Promise.race([actions.order!.capture(), timeout])
+        );
+        if (isFailure(captureResult)) {
+          const err = captureResult.error;
+          const msg = err.message.includes('Window closed')
+            ? "Payment window was closed. Please try again."
+            : 'Payment processing failed. Please try again.';
+          setLocalError(msg);
+          onError?.(err);
+          return setIsProcessing(false);
         }
-        
-        setLocalError(msg);
-        onError?.(error instanceof Error ? error : new Error('Capture failed'));
+
+        // server‑side verification
+        const verifyRes = await tryCatch(
+          fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId: data.orderID,
+              userId: effectiveUserId,
+              caseId: detectiveCase.id,
+              amount: detectiveCase.price,
+            }),
+          })
+        );
+
+        let verified = false;
+        if (isSuccess(verifyRes)) {
+          const resp = verifyRes.data;
+          const ct = resp.headers.get('content-type') || '';
+          if (!ct.includes('application/json')) {
+            const txt = await resp.text().catch(() => 'Unexpected response');
+            setLocalError(`Non-JSON response: ${txt}`);
+            onError?.(new Error('Invalid server response'));
+            return setIsProcessing(false);
+          }
+          const json = await resp.json().catch((e) => ({ error: e }));
+          if (!resp.ok || json.error) {
+            setLocalError(json.error || 'Unknown error');
+            onError?.(new Error(json.error || 'Verification failed'));
+            return setIsProcessing(false);
+          }
+          verified = true;
+        } else {
+          // fallback
+          const fb = await savePurchaseDirectly(data.orderID);
+          verified = isSuccess(fb) && fb.data === true;
+          if (!verified) {
+            setLocalError('Payment verification failed. Contact support.');
+            onError?.(verifyRes.error);
+            return setIsProcessing(false);
+          }
+        }
+
+        // final success
+        onSuccess?.({ ...captureResult.data, verificationSuccess: verified });
         setIsProcessing(false);
-        return;
-      }
+      },
+      [
+        effectiveUserId,
+        detectiveCase.id,
+        detectiveCase.price,
+        onError,
+        onSuccess,
+        savePurchaseDirectly,
+      ]
+    );
 
-      // Verify on your server
-      const verificationResult = await tryCatch(
-        fetch('/api/payments/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId: data.orderID,
-            userId: effectiveUserId,
-            caseId: detectiveCase.id,
-            amount: detectiveCase.price,
-          }),
-        })
-      );
-
-      let verificationSuccess = false;
-      
-      if (isSuccess(verificationResult)) {
-        const response = verificationResult.data;
-        const ct = response.headers.get('content-type') ?? '';
-        
-        if (!ct.includes('application/json')) {
-          // Handle non-JSON response
-          const textResult = await tryCatch(response.text());
-          const errorMessage = isSuccess(textResult) 
-            ? `Non-JSON response: ${textResult.data}`
-            : 'Unexpected response from server';
-            
-          setLocalError(errorMessage);
-          onError?.(new Error(errorMessage));
-          setIsProcessing(false);
-          return;
-        }
-        
-        // Parse JSON response
-        const jsonResult = await tryCatch(response.json());
-        
-        if (isFailure(jsonResult)) {
-          setLocalError('Failed to parse server response');
-          onError?.(jsonResult.error);
-          setIsProcessing(false);
-          return;
-        }
-        
-        if (!response.ok) {
-          const errorMessage = jsonResult.data.error || 'Unknown error';
-          setLocalError(errorMessage);
-          onError?.(new Error(errorMessage));
-          setIsProcessing(false);
-          return;
-        }
-        
-        verificationSuccess = true;
-      } else {
-        // Fallback to direct save if verification API call failed
-        const fallbackResult = await savePurchaseDirectly(data.orderID);
-        verificationSuccess = isSuccess(fallbackResult) && fallbackResult.data;
-        
-        if (!verificationSuccess) {
-          setLocalError('Payment verification failed. Please contact support.');
-          onError?.(verificationResult.error);
-          setIsProcessing(false);
-          return;
-        }
-      }
-
-      // Success path
-      onSuccess?.({ ...captureResult.data, verificationSuccess });
-      setIsProcessing(false);
-    },
-    [
-      effectiveUserId,
-      detectiveCase.id,
-      detectiveCase.price,
-      onSuccess,
-      onError,
-      savePurchaseDirectly,
-    ]
-  );
-
-  // Handle cancellation (no unused param)
+  // other button callbacks
   const handleCancel: PayPalButtonsComponentProps['onCancel'] =
-    useCallback(() => {
-      setIsProcessing(false);
-    }, []);
-
-  // Handle PayPal‑level errors
+    useCallback(() => setIsProcessing(false), []);
   const handleError: PayPalButtonsComponentProps['onError'] =
-  useCallback(
-    (err: unknown) => {
-      setIsProcessing(false);
-      setLocalError('Payment system error. Please try again later.');
-      onError?.(
-        err instanceof Error ? err : new Error('PayPal error')
-      );
-    },
-    [onError]
-  );
+    useCallback(
+      (err: unknown) => {
+        setIsProcessing(false);
+        setLocalError('Payment system error. Please try again later.');
+        onError?.(err instanceof Error ? err : new Error('PayPal error'));
+      },
+      [onError]
+    );
 
-
-  // -- Render guards --------------------------------------------------------
+  // --- Guards & placeholders ---
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-[150px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2 text-sm text-muted-foreground">
-          Loading...
-        </span>
+        <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
       </div>
     );
   }
@@ -276,9 +226,7 @@ const handleApprove: PayPalButtonsComponentProps['onApprove'] =
   if (!effectiveUserId) {
     return (
       <Alert variant="destructive">
-        <AlertDescription>
-          Please login to make a purchase
-        </AlertDescription>
+        <AlertDescription>Please login to make a purchase</AlertDescription>
       </Alert>
     );
   }
@@ -287,8 +235,7 @@ const handleApprove: PayPalButtonsComponentProps['onApprove'] =
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          Payment system is not properly configured. Please contact
-          support.
+          Payment system is not properly configured. Contact support.
         </AlertDescription>
       </Alert>
     );
@@ -343,18 +290,12 @@ const handleApprove: PayPalButtonsComponentProps['onApprove'] =
     );
   }
 
-  // -- PayPal Button UI ----------------------------------------------------
-  const buttonStyle: PayPalButtonsComponentProps['style'] = {
-    layout: 'vertical',
-    shape: 'rect',
-    label: 'pay',
-  };
-
+  // --- PayPal button UI ---
   return (
     <div className="paypal-button-container">
       <div className="w-full min-h-[150px]">
         <PayPalButtons
-          style={buttonStyle}
+          style={{ layout: 'vertical', shape: 'rect', label: 'pay' }}
           disabled={isProcessing}
           forceReRender={[detectiveCase.price.toString()]}
           createOrder={createOrder}

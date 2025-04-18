@@ -2,7 +2,6 @@
 import type { Metadata } from "next";
 import { createClient } from '@/utils/supabase/server';
 import DashboardClient from "./dashboard-client";
-import { User } from '@supabase/supabase-js';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 

@@ -1,71 +1,70 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { updatePassword } from '@/app/login/actions'
 import { createClient } from '@/utils/supabase/client'
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useRouter } from 'next/navigation'
 
 export default function UpdatePasswordPage() {
+  const supabase = createClient()
+  const router = useRouter()
+
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [isAuthChecking, setIsAuthChecking] = useState(true)
-  const router = useRouter()
+  const [checkingAuth, setCheckingAuth] = useState(true)
 
-  // Check authentication on page load
+  // 1) Verify session immediately
   useEffect(() => {
-    const checkAuth = async () => {
-      const supabase = createClient()
-      const { data, error } = await supabase.auth.getUser()
-      if (error || !data?.user) {
+    async function verify() {
+      const { data, error: authErr } = await supabase.auth.getUser()
+      if (authErr || !data?.user) {
         router.push('/login?error=password_reset_expired')
-      } else {
-        setIsAuthChecking(false)
+        return
       }
+      setCheckingAuth(false)
     }
-    checkAuth()
-  }, [router])
+    verify()
+  }, [router, supabase])
 
-  // Handle redirection after successful password update
+  // 2) Redirect after successful update
   useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        router.push('/dashboard')
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
+    if (!success) return
+    const t = setTimeout(() => router.push('/dashboard'), 2000)
+    return () => clearTimeout(t)
   }, [success, router])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 3) Submit handler
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (password !== confirmPassword) {
       setError("Passwords don't match")
       return
     }
-    setIsLoading(true)
+
     setError(null)
+    setIsLoading(true)
+
     try {
       const formData = new FormData()
       formData.append('password', password)
-      const result = await updatePassword(formData)
-      if (result?.error) {
-        setError(result.error.message)
-      } else if (result?.success) {
-        setSuccess(true)
-      }
+      const { error: updErr, success: updOk } = await updatePassword(formData)
+
+      if (updErr) setError(updErr.message)
+      else if (updOk) setSuccess(true)
     } catch {
       setError('An unexpected error occurred')
     } finally {
@@ -73,26 +72,27 @@ export default function UpdatePasswordPage() {
     }
   }
 
-  if (isAuthChecking) {
+  // 4) Loading state
+  if (checkingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4 mx-auto"></div>
-          <p>Verifying your session...</p>
+          <div className="animate-spin h-8 w-8 border-b-2 border-primary mb-4 mx-auto" />
+          <p>Verifying your session…</p>
         </div>
       </div>
     )
   }
 
+  // 5) Main form
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Update Your Password</CardTitle>
-          <CardDescription>
-            Create a new password for your account
-          </CardDescription>
+          <CardDescription>Create a new password for your account</CardDescription>
         </CardHeader>
+
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
@@ -100,13 +100,15 @@ export default function UpdatePasswordPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+
             {success && (
-              <Alert className="border-green-500 bg-green-50 dark:bg-green-900/20">
-                <AlertDescription className="text-green-600 dark:text-green-400">
-                  Password updated successfully! Redirecting to dashboard...
+              <Alert>
+                <AlertDescription>
+                  Password updated successfully! Redirecting…
                 </AlertDescription>
               </Alert>
             )}
+
             {!success && (
               <>
                 <Input
@@ -115,7 +117,7 @@ export default function UpdatePasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6} // Minimum password length
+                  minLength={6}
                 />
                 <Input
                   type="password"
@@ -128,6 +130,7 @@ export default function UpdatePasswordPage() {
               </>
             )}
           </CardContent>
+
           <CardFooter>
             {!success && (
               <Button
@@ -135,7 +138,7 @@ export default function UpdatePasswordPage() {
                 className="w-full"
                 disabled={isLoading || !password || !confirmPassword}
               >
-                {isLoading ? 'Updating...' : 'Update Password'}
+                {isLoading ? 'Updating…' : 'Update Password'}
               </Button>
             )}
           </CardFooter>

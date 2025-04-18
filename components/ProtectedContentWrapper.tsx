@@ -5,66 +5,66 @@ import { createClient } from '@/utils/supabase/client';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { User } from '@supabase/supabase-js';
 
+const supabase = createClient();
+
 interface ProtectedContentWrapperProps {
   children: React.ReactNode;
-  user: User | null; // Pass the user object from the server layout
+  user: User | null;
 }
 
-export default function ProtectedContentWrapper({ children, user }: ProtectedContentWrapperProps) {
-  const [showOnboarding, setShowOnboarding] = useState(false);
+export default function ProtectedContentWrapper({
+  children,
+  user,
+}: ProtectedContentWrapperProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const [shouldShowTour, setShouldShowTour] = useState(false);
 
   useEffect(() => {
-    const checkOnboardingStatus = async () => {
-      if (!user) {
-        setIsLoading(false);
-        return; // Should ideally not happen if layout correctly redirects
-      }
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
 
-      const supabase = createClient();
+    // pull out the id so TS knows it's not null inside fetch()
+    const userId = user.id;
+
+    async function fetchOnboardingStatus() {
       try {
         const { data, error } = await supabase
           .from('user_preferences')
           .select('has_completed_onboarding')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 = 'No rows found'
+        if (error && error.code !== 'PGRST116') {
           console.error('Failed to fetch onboarding status:', error);
-          // Optionally handle error (e.g., show a message, don't show tour)
-        } else if (!data || !data.has_completed_onboarding) {
-          // Show onboarding if no record exists OR if it exists and is false
-          setShowOnboarding(true);
+        } else if (!data?.has_completed_onboarding) {
+          setShouldShowTour(true);
         }
-      } catch (e) {
-        console.error('Error checking onboarding status:', e);
+      } catch (err) {
+        console.error('Error checking onboarding status:', err);
       } finally {
         setIsLoading(false);
       }
-    };
+    }
 
-    checkOnboardingStatus();
-  }, [user]); // Re-run if user changes
+    fetchOnboardingStatus();
+  }, [user]);
 
   const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
-    // The OnboardingTour component itself handles updating the DB
+    setShouldShowTour(false);
   };
 
-  // Optional: Show a loading indicator while checking status
-  // if (isLoading) {
-  //   return <div>Loading...</div>;
-  // }
+  if (isLoading) {
+    return <>{children}</>;
+  }
 
   return (
     <>
       {children}
-      {!isLoading && showOnboarding && user && (
-        <OnboardingTour
-          isFirstTime={showOnboarding} // Pass the state directly
-          onComplete={handleOnboardingComplete}
-        />
+      {shouldShowTour && (
+        <OnboardingTour isFirstTime={true} onComplete={handleOnboardingComplete} />
       )}
     </>
   );
-} 
+}

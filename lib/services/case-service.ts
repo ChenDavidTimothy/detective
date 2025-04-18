@@ -1,126 +1,117 @@
 // File: lib/services/case-service.ts
 
-import { createClient } from '@/utils/supabase/server';
-import { createStaticClient } from '@/utils/supabase/static-client';
-import type { DetectiveCase } from '@/lib/types/detective-case';
+import { createClient } from '@/utils/supabase/server'
+import { createStaticClient } from '@/utils/supabase/static-client'
+import type { DetectiveCase } from '@/lib/types/detective-case'
+
+type DetectiveCaseRow = {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  image_url: string;
+  content: string;
+};
+
+type ServiceOptions = { isStatic?: boolean }
+
+let cachedCases: DetectiveCase[] | null = null
 
 /**
- * Fetches all detective cases from Supabase
- * Used for listings and static site generation
- * @param options - Options object
- * @param options.isStatic - Whether this is being called in a static context (build time)
+ * Returns the proper Supabase client for static or runtime calls.
  */
-export async function getAllCases({ isStatic = false }: { isStatic?: boolean } = {}): Promise<DetectiveCase[]> {
-  // Use the appropriate client based on the isStatic flag
-  const supabase = isStatic 
-    ? createStaticClient() 
-    : await createClient();
-  
-  const { data, error } = await supabase
-    .from('detective_cases')
-    .select('*')
-    .order('id');
-  
-  if (error) {
-    console.error('Error fetching all cases:', error);
-    throw new Error(`Failed to fetch cases: ${error.message}`);
-  }
-  
-  // Map from database schema to application schema (snake_case to camelCase)
-  return data.map(caseData => ({
-    id: caseData.id,
-    title: caseData.title,
-    description: caseData.description,
-    price: caseData.price,
-    difficulty: caseData.difficulty as 'easy' | 'medium' | 'hard',
-    imageUrl: caseData.image_url,
-    content: caseData.content
-  }));
+async function getClient(isStatic = false) {
+  return isStatic ? createStaticClient() : await createClient()
 }
 
 /**
- * Fetches a single detective case by ID
- * Returns null if case doesn't exist
- * @param id - The ID of the case to fetch
- * @param options - Options object
- * @param options.isStatic - Whether this is being called in a static context (build time)
+ * Maps a DB row (snake_case) to our app model (camelCase).
  */
-export async function getCaseById(id: string, { isStatic = false }: { isStatic?: boolean } = {}): Promise<DetectiveCase | null> {
-  // Use the appropriate client based on the isStatic flag
-  const supabase = isStatic 
-    ? createStaticClient() 
-    : await createClient();
-  
+function mapCase(row: DetectiveCaseRow): DetectiveCase {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    price: row.price,
+    difficulty: row.difficulty as 'easy' | 'medium' | 'hard',
+    imageUrl: row.image_url,
+    content: row.content,
+  }
+}
+
+/**
+ * Fetch all cases.
+ */
+export async function getAllCases(
+  { isStatic = false }: ServiceOptions = {},
+): Promise<DetectiveCase[]> {
+  const supabase = await getClient(isStatic)
+  const { data, error } = await supabase
+    .from('detective_cases')
+    .select('*')
+    .order('id')
+
+  if (error) {
+    console.error('Error fetching cases:', error)
+    throw new Error(`Failed to fetch cases: ${error.message}`)
+  }
+
+  return data.map(mapCase)
+}
+
+/**
+ * Fetch one case by ID. Returns null if not found.
+ */
+export async function getCaseById(
+  id: string,
+  { isStatic = false }: ServiceOptions = {},
+): Promise<DetectiveCase | null> {
+  const supabase = await getClient(isStatic)
   const { data, error } = await supabase
     .from('detective_cases')
     .select('*')
     .eq('id', id)
-    .single();
-  
+    .single()
+
   if (error) {
-    if (error.code === 'PGRST116') { // No rows found
-      return null;
-    }
-    console.error(`Error fetching case ${id}:`, error);
-    throw new Error(`Failed to fetch case: ${error.message}`);
+    if (error.code === 'PGRST116') return null
+    console.error(`Error fetching case ${id}:`, error)
+    throw new Error(`Failed to fetch case ${id}: ${error.message}`)
   }
-  
-  return {
-    id: data.id,
-    title: data.title,
-    description: data.description,
-    price: data.price,
-    difficulty: data.difficulty as 'easy' | 'medium' | 'hard',
-    imageUrl: data.image_url,
-    content: data.content
-  };
+
+  return mapCase(data)
 }
 
 /**
- * Caches cases for static and client-side rendering
- * This helps with performance and prevents re-fetching
+ * In‑memory cache for client‑side or SSG.
  */
-let cachedCases: DetectiveCase[] | null = null;
+export async function getCachedCases(
+  opts: ServiceOptions = {},
+): Promise<DetectiveCase[]> {
+  if (!cachedCases) {
+    cachedCases = await getAllCases(opts)
+  }
+  return cachedCases
+}
 
 /**
- * Gets all cases with caching for client-side use
- * Important for static site generation and initial renders
- * @param options - Options object
- * @param options.isStatic - Whether this is being called in a static context (build time)
+ * Cache‑aware single fetch.
  */
-export async function getCachedCases({ isStatic = false }: { isStatic?: boolean } = {}): Promise<DetectiveCase[]> {
-  // Return cached data if available
-  // Note: Cache is shared between static and dynamic calls. Clear cache if data updates.
+export async function getCachedCaseById(
+  id: string,
+  opts: ServiceOptions = {},
+): Promise<DetectiveCase | null> {
   if (cachedCases) {
-    return cachedCases;
+    const found = cachedCases.find(c => c.id === id)
+    if (found) return found
   }
-  
-  const cases = await getAllCases({ isStatic }); // Pass the flag down
-  cachedCases = cases;
-  return cases;
+  return getCaseById(id, opts)
 }
 
 /**
- * Gets a case by ID with caching for client-side use
- * @param id - The ID of the case to fetch
- * @param options - Options object
- * @param options.isStatic - Whether this is being called in a static context (build time)
- */
-export async function getCachedCaseById(id: string, { isStatic = false }: { isStatic?: boolean } = {}): Promise<DetectiveCase | null> {
-  // Check cache first if available
-  if (cachedCases) {
-    const foundCase = cachedCases.find(c => c.id === id);
-    // If found in cache, assume it was populated correctly (either static or dynamic)
-    if (foundCase) return foundCase; 
-  }
-  
-  // If not in cache or not found, fetch directly, passing the flag
-  return getCaseById(id, { isStatic });
-}
-
-/**
- * Clear the cases cache (used when data changes)
+ * Clear in‑memory cache (e.g. after data mutation).
  */
 export function clearCasesCache() {
-  cachedCases = null;
-} 
+  cachedCases = null
+}

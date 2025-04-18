@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Sean Dev Template",
+  title: "Detective Cases",
   description: "Your app description",
 }; 
