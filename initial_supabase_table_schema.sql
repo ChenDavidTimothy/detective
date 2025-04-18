@@ -17,6 +17,11 @@ CREATE TABLE public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT,
   full_name TEXT,
+
+  -- Soft‐delete columns
+  deleted_at TIMESTAMPTZ,
+  is_deleted BOOLEAN NOT NULL DEFAULT false,
+
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
 );
