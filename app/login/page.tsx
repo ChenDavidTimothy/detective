@@ -21,6 +21,10 @@ export default function LoginPage() {
       let errorType = "unknown";
       
       switch (errorParam) {
+        case 'account-deleted':
+          errorMessage = "This account has been deleted.";
+          errorType = "account-deleted";
+          break;
         case 'auth_callback_error':
           errorMessage = "Authentication failed. Please try again.";
           break;

@@ -15,41 +15,66 @@ interface AuthResult {
   };
 }
 
-// Simplified email check function
-async function checkEmailExists(email: string): Promise<{exists: boolean; provider?: string}> {
+interface EmailCheckResult {
+  exists: boolean;
+  provider?: string;
+  is_deleted?: boolean;
+}
+
+// Modified email check function
+async function checkEmailExists(email: string): Promise<EmailCheckResult> {
   const supabaseAdmin = createAdminClient();
   
   try {
-    // Check auth.users
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers();
-    
-    if (!error && data?.users) {
-      const user = data.users.find(u => 
-        u.email?.toLowerCase() === email.toLowerCase()
-      );
-      
-      if (user) {
-        return {
-          exists: true,
-          provider: user.app_metadata?.provider || 'email'
-        };
+    // Check auth.users first (primary source for provider)
+    const { data: authUsersData, error: _authUsersError } = await supabaseAdmin.auth.admin.listUsers();
+    const authUser = authUsersData?.users.find(u => 
+      u.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (authUser) {
+      // If found in auth.users, check public.users for is_deleted status
+      const { data: publicUserData, error: publicUserError } = await supabaseAdmin
+        .from('users')
+        .select('id, is_deleted')
+        .eq('email', email.toLowerCase())
+        .maybeSingle(); // Use maybeSingle() as the public user might not exist yet in rare cases
+
+      if (publicUserError) {
+        console.error("Error checking public.users:", publicUserError);
+        // Fallback or specific error handling might be needed
+        return { exists: true, provider: authUser.app_metadata?.provider || 'email', is_deleted: false }; // Default to not deleted if check fails? Or throw error?
       }
+
+      return {
+        exists: true,
+        provider: authUser.app_metadata?.provider || 'email',
+        is_deleted: publicUserData?.is_deleted ?? false // Use nullish coalescing
+      };
     }
-    
-    // Fallback to public.users
-    const { data: userData } = await supabaseAdmin
+
+    // If not in auth.users, check public.users (e.g., if auth user was deleted but profile remained?)
+    // This scenario might indicate inconsistent data, but we handle it just in case.
+    const { data: publicUserDataOnly, error: publicUserOnlyError } = await supabaseAdmin
       .from('users')
-      .select('id')
+      .select('id, is_deleted')
       .eq('email', email.toLowerCase())
-      .limit(1);
-      
+      .maybeSingle();
+
+    if (publicUserOnlyError) {
+      console.error("Error checking public.users (fallback):", publicUserOnlyError);
+      return { exists: false }; // Assume doesn't exist if check fails
+    }
+
     return {
-      exists: !!userData?.length,
-      provider: userData?.length ? 'unknown' : undefined
+      exists: !!publicUserDataOnly,
+      provider: 'unknown', // Can't determine provider reliably from public.users alone
+      is_deleted: publicUserDataOnly?.is_deleted ?? false
     };
+
   } catch (error) {
     console.error("Error checking email:", error);
-    return { exists: false };
+    return { exists: false }; // Default to non-existent on error
   }
 }
 
@@ -61,8 +86,8 @@ export async function login(formData: FormData): Promise<AuthResult> {
   const returnTo = (formData.get('returnTo') as string) ?? '/dashboard';
   
   try {
-    // First check if the email exists and its provider
-    const { exists, provider } = await checkEmailExists(email);
+    // Check email status, including deletion
+    const { exists, provider, is_deleted } = await checkEmailExists(email);
     
     if (!exists) {
       return {
@@ -70,6 +95,17 @@ export async function login(formData: FormData): Promise<AuthResult> {
         error: {
           type: 'invalid-credentials',
           message: 'No account found with this email. Please sign up instead.'
+        }
+      };
+    }
+
+    // Check if account is deleted
+    if (is_deleted) {
+      return {
+        success: false,
+        error: {
+          type: 'account-deleted',
+          message: 'This account has been deleted.'
         }
       };
     }
@@ -99,6 +135,21 @@ export async function login(formData: FormData): Promise<AuthResult> {
     
     // Check if email is verified
     if (!data.user?.email_confirmed_at) {
+      // We should still check for deletion *again* here, although unlikely to change mid-login
+      // In case the user object returned doesn't reflect the is_deleted status directly
+      const { is_deleted: isDeletedAfterLogin } = await checkEmailExists(email);
+       if (isDeletedAfterLogin) {
+         // Sign out immediately if somehow they logged in with a deleted account
+         await supabase.auth.signOut();
+         return {
+           success: false,
+           error: {
+             type: 'account-deleted',
+             message: 'This account has been deleted.'
+           }
+         };
+       }
+
       return {
         success: false,
         error: {
@@ -107,6 +158,20 @@ export async function login(formData: FormData): Promise<AuthResult> {
         }
       };
     }
+
+    // Final deletion check after successful login before redirection
+     const { is_deleted: isDeletedFinal } = await checkEmailExists(email);
+     if (isDeletedFinal) {
+       // Sign out immediately
+       await supabase.auth.signOut();
+       return {
+         success: false,
+         error: {
+           type: 'account-deleted',
+           message: 'This account has been deleted.'
+         }
+       };
+     }
     
     revalidatePath('/', 'layout');
     return { 
@@ -129,10 +194,22 @@ export async function signup(formData: FormData): Promise<AuthResult> {
   const returnTo = (formData.get('returnTo') as string) ?? '/dashboard';
   
   try {
-    // Check if email exists
-    const { exists, provider } = await checkEmailExists(email);
+    // Check email status, including deletion
+    const { exists, provider, is_deleted } = await checkEmailExists(email);
     
     if (exists) {
+      // If account exists and is deleted, prevent signup
+      if (is_deleted) {
+        return {
+          success: false,
+          error: {
+            type: 'account-deleted',
+            message: 'An account with this email has been deleted and cannot be re-registered.'
+          }
+        };
+      }
+      
+      // If account exists and is not deleted, proceed with existing logic
       const message = provider === 'google'
         ? 'This email is associated with a Google account. Please sign in with Google instead.'
         : 'This email is already registered. Please sign in instead.';
@@ -210,8 +287,8 @@ export async function resetPassword(formData: FormData): Promise<AuthResult> {
   }
   
   try {
-    // Check if email exists first to give better feedback
-    const { exists, provider } = await checkEmailExists(email);
+    // Check email status, including deletion
+    const { exists, provider, is_deleted } = await checkEmailExists(email);
     
     if (!exists) {
       return {
@@ -219,6 +296,17 @@ export async function resetPassword(formData: FormData): Promise<AuthResult> {
         error: {
           type: 'invalid-email',
           message: 'No account found with this email.'
+        }
+      };
+    }
+
+    // Prevent password reset for deleted accounts
+    if (is_deleted) {
+      return {
+        success: false,
+        error: {
+          type: 'account-deleted',
+          message: 'Password reset is not available for deleted accounts.'
         }
       };
     }

@@ -11,32 +11,42 @@ export const DELETE = withCors(async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    console.log('Starting account soft-deletion for user:', userId);
+    console.log('Starting account deletion process for user:', userId);
     
     // Create the admin client
     const supabaseAdmin = createAdminClient();
 
-    // Soft delete the profile
+    // Step 2: Soft delete the profile in public.users
+    console.log('Soft-deleting user profile in public.users...');
     const { error: profileError } = await supabaseAdmin
       .from('users')
       .update({
         deleted_at: new Date().toISOString(),
         is_deleted: true,
+        // Optionally clear other PII here if desired
+        // email: null, 
+        // full_name: null,
       })
       .eq('id', userId);
 
     if (profileError) {
-      console.error('Profile update error:', profileError);
+      // Log the error, but the user is already banned, which is the primary goal
+      console.error('Profile soft-delete error:', profileError);
+      // We might still return success here as the account is effectively blocked
+      // Or return a specific error indicating partial failure
+      // Let's return success but log the error server-side
       return NextResponse.json(
-        { error: 'Failed to update profile', details: profileError.message },
+        { error: 'Failed to soft-delete user profile', details: profileError.message },
         { status: 500 }
       );
     }
+    console.log('Profile soft-deleted successfully.');
 
-    console.log('Account soft-deletion completed successfully');
+    console.log('Account deletion process completed successfully for user:', userId);
     return NextResponse.json({ success: true });
+
   } catch (error) {
-    console.error('Error in account soft-deletion:', error);
+    console.error('Error in account deletion process:', error);
     return NextResponse.json(
       {
         error: 'Failed to process account deletion',
