@@ -100,7 +100,7 @@ export function PayPalCheckout({
 
       const supabase = createClient();
       // Directly await the upsert operation
-      const { data, error } = await supabase
+      const { data: _data, error } = await supabase
         .from('user_purchases')
         .upsert(
           {
