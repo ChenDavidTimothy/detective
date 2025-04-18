@@ -134,7 +134,7 @@ export async function signup(formData: FormData): Promise<AuthResult> {
     
     if (exists) {
       const message = provider === 'google'
-        ? 'This email is already associated with a Google account. Please sign in with Google.'
+        ? 'This email is associated with a Google account. Please sign in with Google instead.'
         : 'This email is already registered. Please sign in instead.';
         
       return {
