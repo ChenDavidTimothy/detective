@@ -5,13 +5,14 @@ import { notFound } from "next/navigation";
 import { createClient } from '@/utils/supabase/server';
 import { generateProductSchema } from "@/utils/structured-data";
 import CaseDetailView from "./case-detail-view";
+import { Suspense } from "react";
+import CaseDetailLoading from "./loading";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  // Await the params object before accessing its properties
   const resolvedParams = await params;
   const detectiveCase = getCaseById(resolvedParams.id);
   
@@ -48,8 +49,21 @@ export function generateStaticParams() {
   }));
 }
 
+async function CaseAccess({ caseId, userId }: { caseId: string; userId?: string }) {
+  if (!userId) return { hasAccess: false };
+  
+  const supabase = await createClient();
+  const { data: purchaseData } = await supabase
+    .from('user_purchases')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('case_id', caseId)
+    .maybeSingle();
+    
+  return { hasAccess: !!purchaseData };
+}
+
 export default async function CaseDetailPage({ params }: Props) {
-  // Await the params object before accessing its properties
   const resolvedParams = await params;
   const caseId = resolvedParams.id;
   const detectiveCase = getCaseById(caseId);
@@ -58,23 +72,14 @@ export default async function CaseDetailPage({ params }: Props) {
     notFound();
   }
   
-  // Get user and check access
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user;
   
-  let hasAccess = false;
-  
-  if (user) {
-    const { data: purchaseData } = await supabase
-      .from('user_purchases')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('case_id', caseId)
-      .maybeSingle();
-      
-    hasAccess = !!purchaseData;
-  }
+  // Parallelize data fetching
+  const [accessData] = await Promise.all([
+    CaseAccess({ caseId, userId: user?.id })
+  ]);
   
   return (
     <>
@@ -84,12 +89,14 @@ export default async function CaseDetailPage({ params }: Props) {
           __html: JSON.stringify(generateProductSchema(detectiveCase))
         }}
       />
-      <CaseDetailView 
-        detectiveCase={detectiveCase} 
-        caseId={caseId} 
-        initialHasAccess={hasAccess}
-        userId={user?.id}
-      />
+      <Suspense fallback={<CaseDetailLoading />}>
+        <CaseDetailView 
+          detectiveCase={detectiveCase} 
+          caseId={caseId} 
+          initialHasAccess={accessData.hasAccess}
+          userId={user?.id}
+        />
+      </Suspense>
     </>
   );
 }

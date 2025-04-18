@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { DETECTIVE_CASES } from '@/lib/detective-cases';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,11 @@ import { Badge } from '@/components/ui/badge';
 export default function CasesClient() {
   const router = useRouter();
 
+  // Prefetch case details on hover
+  const handleMouseEnter = (caseId: string) => {
+    router.prefetch(`/cases/${caseId}`);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -16,7 +22,11 @@ export default function CasesClient() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {DETECTIVE_CASES.map((detectiveCase) => (
-            <Card key={detectiveCase.id} className="flex flex-col">
+            <Card 
+              key={detectiveCase.id} 
+              className="flex flex-col hover:shadow-lg transition-shadow duration-200"
+              onMouseEnter={() => handleMouseEnter(detectiveCase.id)}
+            >
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle>{detectiveCase.title}</CardTitle>

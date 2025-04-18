@@ -2,9 +2,24 @@
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from '@/components/ClientProviders';
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
-const geist = Geist({ subsets: ['latin'] });
+const geist = Geist({ 
+  subsets: ['latin'],
+  display: 'swap',
+  preload: true,
+});
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
+};
 
 export const metadata: Metadata = {
   title: {
@@ -46,6 +61,12 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-vercel.ico',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({
@@ -54,8 +75,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geist.className} bg-background text-foreground`} suppressHydrationWarning={true}>
+    <html lang="en" className={geist.className}>
+      <body className="bg-background text-foreground" suppressHydrationWarning={true}>
         <ClientProviders>
           {children}
         </ClientProviders>

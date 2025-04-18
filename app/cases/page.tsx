@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import CasesClient from "./cases-client";
+import CasesLoading from "./loading";
 
 export const metadata: Metadata = {
   title: "All Detective Cases",
@@ -13,5 +15,9 @@ export const metadata: Metadata = {
 };
 
 export default function CasesPage() {
-  return <CasesClient />;
+  return (
+    <Suspense fallback={<CasesLoading />}>
+      <CasesClient />
+    </Suspense>
+  );
 }
