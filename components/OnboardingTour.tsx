@@ -22,52 +22,46 @@ export function OnboardingTour({ isFirstTime, onComplete }: OnboardingTourProps)
 
   const steps = useMemo<Step[]>(() => [
     {
-      title: "Start with a Template",
+      title: "Welcome to Detective!",
       description: (
-        <div className="flex flex-col gap-2">
-          <p>Click  <button className="px-2 py-1 text-xs rounded-sm bg-primary hover:bg-primary/90 text-primary-foreground w-fit">Use Template</button> to import one of our pre-made recipes into your collection.</p>
-        </div>
+        "Ready to put your detective skills to the test? Let's take a quick look around."
       ),
-      targetClass: "recipe-templates"
+      targetClass: "welcome-message"
     },
     {
-      title: "Voice Start",
+      title: "Browse Available Cases",
       description: (
-        <div className="flex flex-col gap-2 items-center">
-          <p>Click the microphone to START speaking.</p>
-          <Button variant="default" size="icon" className="w-12 h-12 mt-2 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center shadow-lg">
-            <span className="text-xl text-white">🎤</span>
-          </Button>
-        </div>
+        "Here you can find all the unsolved mysteries waiting for you. Scroll through to see the different cases."
       ),
-      targetClass: "ai-assistant-button"
+      targetClass: "case-list-container"
     },
     {
-      title: "Voice Stop",
+      title: "View Case Details",
       description: (
-        <div className="flex flex-col gap-2 items-center">
-          <p>Click the red button to STOP voice interaction.</p>
-          <Button variant="destructive" size="icon" className="w-12 h-12 mt-2 rounded-full flex items-center justify-center shadow-lg">
-            <span className="text-xl text-white">⏹</span>
-          </Button>
-        </div>
+        "Click on any case card to see more details, like its description, difficulty, and price."
       ),
-      targetClass: "ai-assistant-button"
+      targetClass: "case-card"
     },
     {
-      title: "Add Your Own Recipe",
+      title: "Purchase a Case",
       description: (
-        <div className="flex flex-col gap-2 items-center">
-          <p>Click the button below to add your own recipe:</p>
-          <Button className="w-48 mt-2 sm:w-auto">
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add New Recipe
-          </Button>
-        </div>
+        "Found a case that intrigues you? Click the purchase button to unlock the full case file and start investigating."
       ),
-      targetClass: "add-recipe-button"
+      targetClass: "purchase-button"
+    },
+    {
+      title: "Your Purchased Cases",
+      description: (
+        "After purchasing, your cases will appear here. This is your personal collection of mysteries to solve."
+      ),
+      targetClass: "my-cases-section"
+    },
+    {
+      title: "Start Solving!",
+      description: (
+        "Select a purchased case and click 'Start Solving' to dive into the evidence and crack the case!"
+      ),
+      targetClass: "open-case-button"
     }
   ], []);
 

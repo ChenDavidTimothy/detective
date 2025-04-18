@@ -2,6 +2,7 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
+import ProtectedContentWrapper from '@/components/ProtectedContentWrapper';
 
 export default async function ProtectedLayout({
   children,
@@ -32,5 +33,10 @@ export default async function ProtectedLayout({
     redirect(`/login?returnTo=${returnTo}`);
   }
 
-  return children;
+  // Wrap children with the client component, passing the user object
+  return (
+    <ProtectedContentWrapper user={data.user}>
+      {children}
+    </ProtectedContentWrapper>
+  );
 }
