@@ -2,29 +2,6 @@
 import { createClient } from '@/utils/supabase/server';
 import type { Metadata } from "next";
 import ProfileClient from "./profile-client";
-import { User } from '@supabase/supabase-js';
-
-interface UserPreferences {
-  id: string;
-  user_id: string;
-  has_completed_onboarding: boolean;
-}
-
-interface UserPurchase {
-  case_id: string;
-  purchase_date: string;
-}
-
-interface SupabaseUserData {
-  id: string;
-  email: string;
-  full_name: string;
-  preferences: {
-    id: string;
-    has_completed_onboarding: boolean;
-  };
-  purchases: UserPurchase[];
-}
 
 export const metadata: Metadata = {
   title: "Your Profile",
@@ -49,8 +26,8 @@ export default async function ProfilePage() {
     );
   }
 
-  // Fetch user data, preferences, and purchases in a single query
-  const { data: userData } = await supabase
+  // Fetch user data, preferences, and purchases with case details in a single query
+  const { data: userData, error: userError } = await supabase
     .from('users')
     .select(`
       id,
@@ -62,30 +39,79 @@ export default async function ProfilePage() {
       ),
       purchases:user_purchases!user_purchases_user_id_fkey (
         case_id,
-        purchase_date
+        purchase_date,
+        case:detective_cases!user_purchases_case_id_fkey ( 
+          id, 
+          title, 
+          description, 
+          price, 
+          difficulty,
+          image_url
+        )
       )
     `)
     .eq('id', user.id)
-    .single();
+    .maybeSingle(); // Use maybeSingle() to handle potentially missing users gracefully
 
-  if (!userData) {
+  if (userError) {
+    console.error("Error fetching user data:", userError);
     return (
       <div className="p-8">
-        <p>Unable to retrieve user data. Please try again.</p>
+        <p>Error retrieving user data. Please try again later.</p>
       </div>
     );
   }
 
-  const typedUserData = userData as unknown as SupabaseUserData;
+  if (!userData) {
+      console.warn(`No user data found for user ID: ${user.id}`);
+      // Decide how to handle missing user data - maybe show profile client with defaults?
+      // For now, returning an error message.
+      return (
+          <div className="p-8">
+              <p>User profile data not found.</p>
+          </div>
+      );
+  }
+  
+  // Handle potential array for preferences (take first element or default)
+  const preferencesData = Array.isArray(userData.preferences) ? userData.preferences[0] : userData.preferences;
+  const preferences = preferencesData || {
+    id: `default-prefs-${user.id}`, // Provide a unique default ID
+    has_completed_onboarding: false 
+  };
+
+  // Filter purchases to include only those with valid case details, then transform
+  const purchasedCases = (userData.purchases || [])
+    .map(purchase => {
+      // Handle potential array for case details (take first element)
+      const caseDetails = Array.isArray(purchase.case) ? purchase.case[0] : purchase.case;
+      return {
+        ...purchase, // Keep original purchase data
+        caseDetails // Add processed case details (might be null)
+      };
+    })
+    .filter(p => p.caseDetails != null) // Filter out entries where caseDetails is null/undefined
+    .map(p => ({ // Map to the final structure expected by the client
+      case_id: p.case_id,
+      purchase_date: p.purchase_date,
+      details: { // Now we know caseDetails is not null here
+        id: p.caseDetails.id,
+        title: p.caseDetails.title,
+        description: p.caseDetails.description,
+        price: p.caseDetails.price,
+        difficulty: p.caseDetails.difficulty,
+        image_url: p.caseDetails.image_url,
+      }
+    }));
 
   return (
     <ProfileClient 
       initialUserData={user} 
-      initialPurchasedCases={typedUserData.purchases || []} 
+      initialPurchasedCases={purchasedCases} // This array now only contains valid cases
       initialPreferences={{
-        id: typedUserData.preferences.id,
+        id: preferences.id,
         user_id: user.id,
-        has_completed_onboarding: typedUserData.preferences.has_completed_onboarding
+        has_completed_onboarding: preferences.has_completed_onboarding
       }}
     />
   );

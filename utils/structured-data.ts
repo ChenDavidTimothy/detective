@@ -1,4 +1,4 @@
-import { DetectiveCase } from "@/lib/detective-cases";
+import type { DetectiveCase } from "@/lib/types/detective-case";
 
 export function generateProductSchema(detectiveCase: DetectiveCase) {
   return {

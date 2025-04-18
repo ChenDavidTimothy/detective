@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DETECTIVE_CASES } from '@/lib/detective-cases';
 import { ErrorBoundary } from 'react-error-boundary';
 import { tryCatch, isSuccess, isFailure } from '@/utils/result';
 import { signOut } from '@/app/login/actions';
@@ -24,6 +23,14 @@ import { Loader2 } from 'lucide-react';
 interface PurchasedCase {
   case_id: string;
   purchase_date?: string;
+  details?: {
+    id: string;
+    title: string;
+    description: string;
+    price: number;
+    difficulty: 'easy' | 'medium' | 'hard';
+    image_url?: string;
+  };
 }
 
 interface UserPreferences {
@@ -226,10 +233,7 @@ export default function ProfileClient({
               {purchasedCases.length > 0 ? (
                 <div className="space-y-4">
                   {purchasedCases.map((purchase) => {
-                    const detectiveCase = DETECTIVE_CASES.find(
-                      (c) => c.id === purchase.case_id
-                    );
-                    if (!detectiveCase) return null;
+                    if (!purchase.details) return null;
 
                     return (
                       <div
@@ -237,7 +241,7 @@ export default function ProfileClient({
                         className="p-4 border rounded-lg flex justify-between items-center"
                       >
                         <div>
-                          <h3 className="font-medium">{detectiveCase.title}</h3>
+                          <h3 className="font-medium">{purchase.details.title}</h3>
                           <p className="text-sm text-muted-foreground">
                             Purchased on:{' '}
                             {purchase.purchase_date

@@ -1,13 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { DETECTIVE_CASES } from '@/lib/detective-cases';
+import type { DetectiveCase } from '@/lib/types/detective-case';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-export default function CasesClient() {
+interface CasesClientProps {
+  initialCases: DetectiveCase[]; 
+}
+
+export default function CasesClient({ initialCases }: CasesClientProps) {
   const router = useRouter();
 
   // Prefetch case details on hover
@@ -21,7 +24,7 @@ export default function CasesClient() {
         <h1 className="text-3xl font-bold mb-8">Detective Cases</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {DETECTIVE_CASES.map((detectiveCase) => (
+          {initialCases.map((detectiveCase) => (
             <Card 
               key={detectiveCase.id} 
               className="flex flex-col hover:shadow-lg transition-shadow duration-200"

@@ -1,8 +1,8 @@
 // app/sitemap.ts
-import { DETECTIVE_CASES } from "@/lib/detective-cases";
+import { getCachedCases } from "@/lib/services/case-service";
 import { MetadataRoute } from "next";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   
   // Static pages
@@ -27,8 +27,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
   
-  // Dynamic pages for detective cases
-  const casePages = DETECTIVE_CASES.map((detectiveCase) => ({
+  // Dynamic pages for detective cases - fetched using static client
+  const detectiveCases = await getCachedCases({ isStatic: true });
+  const casePages = detectiveCases.map((detectiveCase) => ({
     url: `${baseUrl}/cases/${detectiveCase.id}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,

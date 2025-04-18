@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { getCachedCases } from "@/lib/services/case-service";
 import CasesClient from "./cases-client";
 import CasesLoading from "./loading";
 
@@ -27,10 +28,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function CasesPage() {
+export default async function CasesPage() {
+  // Fetch all cases from Supabase
+  const cases = await getCachedCases();
+  
   return (
     <Suspense fallback={<CasesLoading />}>
-      <CasesClient />
+      {/* Pass cases to the client component */}
+      <CasesClient initialCases={cases} />
     </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 // app/cases/[id]/page.tsx
 import type { Metadata } from "next";
-import { getCaseById, DETECTIVE_CASES } from "@/lib/detective-cases";
+import { getCachedCaseById, getCachedCases } from "@/lib/services/case-service";
 import { notFound } from "next/navigation";
 import { createClient } from '@/utils/supabase/server';
 import { generateProductSchema } from "@/utils/structured-data";
@@ -9,7 +9,7 @@ import { Suspense } from "react";
 import CaseDetailLoading from "./loading";
 
 type Props = {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 };
 
 // Server action for checking case access
@@ -28,8 +28,11 @@ async function checkCaseAccess(caseId: string, userId?: string) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const resolvedParams = await params;
-  const detectiveCase = getCaseById(resolvedParams.id);
+  // Although params isn't a promise, awaiting it follows Next.js docs for sync access errors.
+  const awaitedParams = await params;
+  const id = awaitedParams.id; // Use awaited params
+
+  const detectiveCase = await getCachedCaseById(id);
   
   if (!detectiveCase) {
     return {
@@ -73,21 +76,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ],
     },
     alternates: {
-      canonical: `${process.env.NEXT_PUBLIC_APP_URL}/cases/${resolvedParams.id}`,
+      canonical: `${process.env.NEXT_PUBLIC_APP_URL}/cases/${id}`,
     },
   };
 }
 
-export function generateStaticParams() {
-  return DETECTIVE_CASES.map((detectiveCase) => ({
+export async function generateStaticParams() {
+  // Pass isStatic: true to ensure the static client is used
+  const cases = await getCachedCases({ isStatic: true }); 
+  return cases.map((detectiveCase) => ({
     id: detectiveCase.id,
   }));
 }
 
 export default async function CaseDetailPage({ params }: Props) {
-  const resolvedParams = await params;
-  const caseId = resolvedParams.id;
-  const detectiveCase = getCaseById(caseId);
+  // Although params isn't a promise, awaiting it follows Next.js docs for sync access errors.
+  const awaitedParams = await params;
+  const id = awaitedParams.id; // Use awaited params
+
+  // Default isStatic is false, so no need to pass it here for request time
+  const detectiveCase = await getCachedCaseById(id);
   
   if (!detectiveCase) {
     notFound();
@@ -95,7 +103,7 @@ export default async function CaseDetailPage({ params }: Props) {
 
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
-  const accessData = await checkCaseAccess(caseId, authData?.user?.id);
+  const accessData = await checkCaseAccess(id, authData?.user?.id);
   
   return (
     <>
@@ -108,7 +116,7 @@ export default async function CaseDetailPage({ params }: Props) {
       <Suspense fallback={<CaseDetailLoading />}>
         <CaseDetailView 
           detectiveCase={detectiveCase} 
-          caseId={caseId} 
+          caseId={id} 
           initialHasAccess={accessData.hasAccess}
           userId={authData?.user?.id}
         />
