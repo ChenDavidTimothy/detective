@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { resetPassword } from '@/app/login/actions';
+import { tryCatch, isFailure } from '@/utils/result';
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
@@ -32,22 +33,27 @@ export function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordModalProp
     setIsLoading(true);
     setError(null);
 
-    try {
-      // Call the server action with a FormData object
-      const formData = new FormData();
-      formData.append('email', email.trim());
-      const result = await resetPassword(formData);
-      
-      if (result.error) {
-        setError(result.error.message);
+    const formData = new FormData();
+    formData.append('email', email.trim());
+    
+    // Use tryCatch to handle unexpected errors while preserving structured errors
+    const resetResult = await tryCatch(resetPassword(formData));
+    
+    if (isFailure(resetResult)) {
+      // Handle unexpected errors from the tryCatch wrapper
+      setError('Failed to contact server. Please try again.');
+      console.error('Unexpected error in password reset:', resetResult.error);
+    } else {
+      // Handle the AuthResult from resetPassword
+      const authResult = resetResult.data;
+      if (authResult.error) {
+        setError(authResult.error.message);
       } else {
         setSuccess(true);
       }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to send reset email');
-    } finally {
-      setIsLoading(false);
     }
+    
+    setIsLoading(false);
   };
 
   const handleClose = () => {

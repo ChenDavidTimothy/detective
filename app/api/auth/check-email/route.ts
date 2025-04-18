@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/supabase-admin';
 import { withCors } from '@/utils/cors';
-import { tryCatch, Result, isSuccess } from '@/utils/result';
+import { tryCatch, Result, isSuccess, isFailure } from '@/utils/result';
 
 interface CheckEmailRequest {
   email: string;
@@ -82,45 +82,39 @@ const checkPublicUsers = async (email: string): Promise<Result<CheckEmailRespons
 };
 
 export const POST = withCors(async function POST(request: NextRequest) {
-  // Parse request body
-  const parseBody = async (): Promise<Result<CheckEmailRequest>> => {
-    try {
-      const body = await request.json() as CheckEmailRequest;
-      return { data: body, error: null };
-    } catch {
-      return { data: null, error: new Error('Invalid JSON payload') };
-    }
-  };
-
-  // Parse and validate request body
-  const parsedBody = await parseBody();
-  if (!isSuccess(parsedBody)) {
+  // Parse request body using tryCatch
+  const parseBodyResult = await tryCatch<CheckEmailRequest>(request.json());
+  
+  if (isFailure(parseBodyResult)) {
     return NextResponse.json(
-      { error: parsedBody.error.message },
+      { error: 'Invalid JSON payload' },
       { status: 400 }
     );
   }
-
-  const validatedEmail = validateEmail(parsedBody.data.email);
-  if (!isSuccess(validatedEmail)) {
+  
+  const body = parseBodyResult.data;
+  
+  // Validate request data
+  const validatedEmailResult = validateEmail(body.email);
+  if (isFailure(validatedEmailResult)) {
     return NextResponse.json(
-      { error: validatedEmail.error.message },
+      { error: validatedEmailResult.error.message },
       { status: 400 }
     );
   }
-
-  // Check auth.users first
-  const authResult = await checkAuthUsers(validatedEmail.data);
+  
+  // Check auth users with tryCatch
+  const authResult = await checkAuthUsers(validatedEmailResult.data);
   if (isSuccess(authResult)) {
     return NextResponse.json(authResult.data);
   }
-
-  // Fallback to public.users check
-  const publicResult = await checkPublicUsers(validatedEmail.data);
+  
+  // Fallback to public users check
+  const publicResult = await checkPublicUsers(validatedEmailResult.data);
   if (isSuccess(publicResult)) {
     return NextResponse.json(publicResult.data);
   }
-
+  
   console.error('Email check error:', publicResult.error);
   return NextResponse.json(
     { error: 'Failed to check email availability' },

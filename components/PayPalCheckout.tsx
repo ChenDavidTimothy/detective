@@ -132,87 +132,119 @@ export function PayPalCheckout({
   );
 
   // Handle approval
-  const handleApprove: PayPalButtonsComponentProps['onApprove'] =
-    useCallback(
-      async (data: OnApproveData, actions: OnApproveActions) => {
-        setIsProcessing(true);
-        try {
-          const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new Error('Payment processing timeout')),
-              30000
-            )
-          );
-          const captureResult = await tryCatch(
-            Promise.race([
-              actions.order!.capture(),
-              timeoutPromise,
-            ])
-          );
+const handleApprove: PayPalButtonsComponentProps['onApprove'] =
+  useCallback(
+    async (data: OnApproveData, actions: OnApproveActions) => {
+      setIsProcessing(true);
+      
+      // Create timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Payment processing timeout')),
+          30000
+        )
+      );
+      
+      // Capture the order with timeout
+      const captureResult = await tryCatch(
+        Promise.race([
+          actions.order!.capture(),
+          timeoutPromise,
+        ])
+      );
 
-          if (isFailure(captureResult)) {
-            throw captureResult.error;
-          }
-
-          // Verify on your server
-          const verificationResult = await tryCatch(
-            fetch('/api/payments/verify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                orderId: data.orderID,
-                userId: effectiveUserId,
-                caseId: detectiveCase.id,
-                amount: detectiveCase.price,
-              }),
-            })
-          );
-
-          let verificationSuccess = false;
-          if (isSuccess(verificationResult)) {
-            const ct = verificationResult.data.headers.get('content-type') ?? '';
-            if (!ct.includes('application/json')) {
-              throw new Error(
-                `Non-JSON response: ${await verificationResult.data.text()}`
-              );
-            }
-            const json = await verificationResult.data.json();
-            if (!verificationResult.data.ok) {
-              throw new Error(json.error || 'Unknown');
-            }
-            verificationSuccess = true;
-          } else {
-            const fallbackResult = await savePurchaseDirectly(data.orderID);
-            verificationSuccess = isSuccess(fallbackResult) && fallbackResult.data;
-          }
-
-          onSuccess?.({ ...captureResult.data, verificationSuccess });
-        } catch (err) {
-          let msg = 'Payment processing failed. Please try again.';
-          if (
-            err instanceof Error &&
-            err.message.includes('Window closed')
-          ) {
-            msg =
-              "Payment window was closed. Please try again when you're ready.";
-          }
-          setLocalError(msg);
-          onError?.(
-            err instanceof Error ? err : new Error('Capture failed')
-          );
-        } finally {
-          setIsProcessing(false);
+      if (isFailure(captureResult)) {
+        const error = captureResult.error;
+        let msg = 'Payment processing failed. Please try again.';
+        
+        if (error instanceof Error && error.message.includes('Window closed')) {
+          msg = "Payment window was closed. Please try again when you're ready.";
         }
-      },
-      [
-        effectiveUserId,
-        detectiveCase.id,
-        detectiveCase.price,
-        onSuccess,
-        onError,
-        savePurchaseDirectly,
-      ]
-    );
+        
+        setLocalError(msg);
+        onError?.(error instanceof Error ? error : new Error('Capture failed'));
+        setIsProcessing(false);
+        return;
+      }
+
+      // Verify on your server
+      const verificationResult = await tryCatch(
+        fetch('/api/payments/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: data.orderID,
+            userId: effectiveUserId,
+            caseId: detectiveCase.id,
+            amount: detectiveCase.price,
+          }),
+        })
+      );
+
+      let verificationSuccess = false;
+      
+      if (isSuccess(verificationResult)) {
+        const response = verificationResult.data;
+        const ct = response.headers.get('content-type') ?? '';
+        
+        if (!ct.includes('application/json')) {
+          // Handle non-JSON response
+          const textResult = await tryCatch(response.text());
+          const errorMessage = isSuccess(textResult) 
+            ? `Non-JSON response: ${textResult.data}`
+            : 'Unexpected response from server';
+            
+          setLocalError(errorMessage);
+          onError?.(new Error(errorMessage));
+          setIsProcessing(false);
+          return;
+        }
+        
+        // Parse JSON response
+        const jsonResult = await tryCatch(response.json());
+        
+        if (isFailure(jsonResult)) {
+          setLocalError('Failed to parse server response');
+          onError?.(jsonResult.error);
+          setIsProcessing(false);
+          return;
+        }
+        
+        if (!response.ok) {
+          const errorMessage = jsonResult.data.error || 'Unknown error';
+          setLocalError(errorMessage);
+          onError?.(new Error(errorMessage));
+          setIsProcessing(false);
+          return;
+        }
+        
+        verificationSuccess = true;
+      } else {
+        // Fallback to direct save if verification API call failed
+        const fallbackResult = await savePurchaseDirectly(data.orderID);
+        verificationSuccess = isSuccess(fallbackResult) && fallbackResult.data;
+        
+        if (!verificationSuccess) {
+          setLocalError('Payment verification failed. Please contact support.');
+          onError?.(verificationResult.error);
+          setIsProcessing(false);
+          return;
+        }
+      }
+
+      // Success path
+      onSuccess?.({ ...captureResult.data, verificationSuccess });
+      setIsProcessing(false);
+    },
+    [
+      effectiveUserId,
+      detectiveCase.id,
+      detectiveCase.price,
+      onSuccess,
+      onError,
+      savePurchaseDirectly,
+    ]
+  );
 
   // Handle cancellation (no unused param)
   const handleCancel: PayPalButtonsComponentProps['onCancel'] =

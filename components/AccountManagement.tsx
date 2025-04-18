@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { signOut } from '@/app/login/actions';
+import { tryCatch, isSuccess, isFailure } from '@/utils/result';
 
 interface AccountManagementProps {
   initialUserData?: User | null;
@@ -48,24 +49,40 @@ export function AccountManagement({ initialUserData }: AccountManagementProps) {
     if (!user?.id) return;
     setIsLoading(true);
     setError('');
-    try {
-      const response = await fetch(`/api/user/delete?userId=${user.id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const { error: errMsg } = await response.json();
-        throw new Error(errMsg || 'Failed to delete account');
-      }
-      await signOut();
-      router.push('/login');
-    } catch (error) {
-      console.error('Delete account error:', error);
-      setError(
-        error instanceof Error ? error.message : 'Failed to delete account'
-      );
-    } finally {
+    
+    // Use tryCatch for the fetch operation
+    const deleteResult = await tryCatch(
+      fetch(`/api/user/delete?userId=${user.id}`, { method: 'DELETE' })
+    );
+    
+    if (isFailure(deleteResult)) {
+      console.error('Delete account error:', deleteResult.error);
+      setError(deleteResult.error.message || 'Failed to delete account');
       setIsLoading(false);
+      return;
     }
+    
+    // Check if the response is ok
+    const response = deleteResult.data;
+    if (!response.ok) {
+      const responseBodyResult = await tryCatch(response.json());
+      const errorMessage = isSuccess(responseBodyResult) 
+        ? responseBodyResult.data.error || 'Failed to delete account'
+        : 'Failed to delete account';
+      
+      setError(errorMessage);
+      setIsLoading(false);
+      return;
+    }
+    
+    // Handle successful deletion
+    const signOutResult = await tryCatch(signOut());
+    if (isFailure(signOutResult)) {
+      console.error('Sign out error after account deletion:', signOutResult.error);
+    }
+    
+    router.push('/login');
+    setIsLoading(false);
   };
 
   const handleResetPassword = () => {
