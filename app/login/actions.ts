@@ -1,263 +1,349 @@
+// app/login/actions.ts
 'use server'
 
-import { normalizeAuthError } from '@/utils/auth-helpers'
+import { parseAuthError } from '@/utils/auth-helpers'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/supabase-admin'
 import { revalidatePath } from 'next/cache'
-import { tryCatch, Result, isSuccess } from '@/utils/result'
-// Removed the unused User import
 
-// Helper function for email validation
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
-}
-
-interface LoginResult {
+interface AuthResult {
   success: boolean;
   redirectTo?: string;
   error?: {
+    type: string;
     message: string;
   };
 }
 
-const checkEmailExists = async (email: string): Promise<Result<{ exists: boolean; provider?: string }>> => {
-  const supabaseAdmin = await createAdminClient();
+// Simplified email check function
+async function checkEmailExists(email: string): Promise<{exists: boolean; provider?: string}> {
+  const supabaseAdmin = createAdminClient();
   
-  // Check auth.users first
-  const authResult = await tryCatch(
-    new Promise<{ exists: boolean; provider?: string }>((resolve, reject) => {
-      supabaseAdmin.auth.admin.listUsers()
-        .then(({ data: authData, error: authError }) => {
-          if (authError) {
-            reject(authError);
-            return;
-          }
-
-          if (authData?.users?.length) {
-            const exactMatch = authData.users.find(
-              (user) => user.email?.toLowerCase() === email
-            );
-            if (exactMatch) {
-              resolve({
-                exists: true,
-                provider: exactMatch.app_metadata?.provider || 'email',
-              });
-              return;
-            }
-          }
-
-          resolve({ exists: false });
-        });
-    })
-  );
-
-  if (isSuccess(authResult)) {
-    return authResult;
-  }
-
-  // Fallback to public.users check
-  return tryCatch(
-    new Promise<{ exists: boolean; provider?: string }>((resolve, reject) => {
-      supabaseAdmin
-        .from('users')
-        .select('id, email')
-        .eq('email', email)
-        .limit(1)
-        .then(({ data, error }) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-
-          resolve({
-            exists: !!data?.length,
-            provider: data?.length ? 'unknown' : undefined,
-          });
-        });
-    })
-  );
-};
-
-export async function login(formData: FormData): Promise<LoginResult> {
-  const supabase = await createClient()
-
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const returnTo = (formData.get('returnTo') as string) ?? '/dashboard'
-
-  // First check if the email exists and its provider
-  const emailCheck = await checkEmailExists(email)
-  if (isSuccess(emailCheck)) {
-    if (!emailCheck.data.exists) {
-      return {
-        success: false,
-        error: {
-          message: 'No account found with this email. Please sign up instead.',
-        },
+  try {
+    // Check auth.users
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (!error && data?.users) {
+      const user = data.users.find(u => 
+        u.email?.toLowerCase() === email.toLowerCase()
+      );
+      
+      if (user) {
+        return {
+          exists: true,
+          provider: user.app_metadata?.provider || 'email'
+        };
       }
     }
     
-    if (emailCheck.data.provider === 'google') {
-      return {
-        success: false,
-        error: {
-          message: 'This email is associated with a Google account. Please sign in with Google instead.',
-        },
-      }
-    }
+    // Fallback to public.users
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', email.toLowerCase())
+      .limit(1);
+      
+    return {
+      exists: !!userData?.length,
+      provider: userData?.length ? 'unknown' : undefined
+    };
+  } catch (error) {
+    console.error("Error checking email:", error);
+    return { exists: false };
   }
-
-  const result = await tryCatch(
-    supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-  )
-
-  if (!isSuccess(result)) {
-    if (result.error.message.includes('Email not confirmed')) {
-      return {
-        success: false,
-        error: {
-          message:
-            'Your email has not been verified. Please check your inbox and click the verification link.',
-        },
-      }
-    }
-    return { success: false, error: normalizeAuthError(result.error) }
-  }
-
-  revalidatePath('/', 'layout')
-  return { success: true, redirectTo: returnTo }
 }
 
-export async function signup(formData: FormData): Promise<LoginResult> {
-  const supabase = await createClient()
-  // Removed the unused supabaseAdmin variable since it's not used below
-
-  const email = (formData.get('email') as string)?.toLowerCase().trim()
-  const password = formData.get('password') as string
-  const returnTo = (formData.get('returnTo') as string) ?? '/dashboard'
-
-  if (!isValidEmail(email)) {
+export async function login(formData: FormData): Promise<AuthResult> {
+  const supabase = await createClient();
+  
+  const email = (formData.get('email') as string)?.trim().toLowerCase();
+  const password = formData.get('password') as string;
+  const returnTo = (formData.get('returnTo') as string) ?? '/dashboard';
+  
+  try {
+    // First check if the email exists and its provider
+    const { exists, provider } = await checkEmailExists(email);
+    
+    if (!exists) {
+      return {
+        success: false,
+        error: {
+          type: 'invalid-credentials',
+          message: 'No account found with this email. Please sign up instead.'
+        }
+      };
+    }
+    
+    if (provider === 'google') {
+      return {
+        success: false,
+        error: {
+          type: 'google-account',
+          message: 'This email is associated with a Google account. Please sign in with Google instead.'
+        }
+      };
+    }
+    
+    // Attempt login
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    
+    if (error) {
+      return {
+        success: false,
+        error: parseAuthError(error)
+      };
+    }
+    
+    // Check if email is verified
+    if (!data.user?.email_confirmed_at) {
+      return {
+        success: false,
+        error: {
+          type: 'email-not-verified',
+          message: 'Please verify your email before signing in.'
+        }
+      };
+    }
+    
+    revalidatePath('/', 'layout');
+    return { 
+      success: true,
+      redirectTo: returnTo
+    };
+  } catch (error) {
     return {
       success: false,
-      error: { message: 'Please enter a valid email address' },
-    }
+      error: parseAuthError(error)
+    };
   }
+}
 
-  const emailCheck = await checkEmailExists(email)
-  if (isSuccess(emailCheck) && emailCheck.data.exists) {
-    const provider = emailCheck.data.provider
-    let errorMessage = 'Email already exists. Please sign in instead.'
-    if (provider === 'google') {
-      errorMessage += ' You previously signed up with Google.'
+export async function signup(formData: FormData): Promise<AuthResult> {
+  const supabase = await createClient();
+  
+  const email = (formData.get('email') as string)?.trim().toLowerCase();
+  const password = formData.get('password') as string;
+  const returnTo = (formData.get('returnTo') as string) ?? '/dashboard';
+  
+  try {
+    // Check if email exists
+    const { exists, provider } = await checkEmailExists(email);
+    
+    if (exists) {
+      const message = provider === 'google'
+        ? 'This email is already associated with a Google account. Please sign in with Google.'
+        : 'This email is already registered. Please sign in instead.';
+        
+      return {
+        success: false,
+        error: {
+          type: provider === 'google' ? 'google-account' : 'email-already-exists',
+          message
+        }
+      };
     }
-    return { success: false, error: { message: errorMessage } }
-  }
-
-  const result = await tryCatch(
-    supabase.auth.signUp({
+    
+    // Basic password validation
+    if (!password || password.length < 6) {
+      return {
+        success: false,
+        error: {
+          type: 'weak-password',
+          message: 'Password must be at least 6 characters long.'
+        }
+      };
+    }
+    
+    // Attempt signup
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm?next=${encodeURIComponent(
-          returnTo
-        )}`,
-      },
-    })
-  )
-
-  if (!isSuccess(result)) {
-    if (
-      result.error.message.includes('already') ||
-      result.error.message.includes('exist')
-    ) {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm?next=${encodeURIComponent(returnTo)}`
+      }
+    });
+    
+    if (error) {
       return {
         success: false,
-        error: { message: 'Email already exists. Please sign in instead.' },
-      }
+        error: parseAuthError(error)
+      };
     }
-    return { success: false, error: normalizeAuthError(result.error) }
-  }
-
-  if (result.data.data?.user && !result.data.data.user.email_confirmed_at) {
-    return {
-      success: true,
-      redirectTo: `/verify-email?email=${encodeURIComponent(email)}`,
-    }
-  }
-
-  revalidatePath('/', 'layout')
-  return { success: true, redirectTo: returnTo }
-}
-
-export async function resetPassword(formData: FormData): Promise<LoginResult> {
-  const supabase = await createClient()
-
-  const email = formData.get('email') as string
-
-  if (!email) {
-    return { success: false, error: { message: 'Email is required' } }
-  }
-
-  const result = await tryCatch(
-    supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery`,
-    })
-  )
-
-  if (!isSuccess(result)) {
-    return { success: false, error: normalizeAuthError(result.error) }
-  }
-
-  return { success: true }
-}
-
-export async function updatePassword(formData: FormData) {
-  const supabase = await createClient()
-
-  const password = formData.get('password') as string
-
-  if (!password) {
-    return { error: { message: 'Password is required' } }
-  }
-
-  try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
+    
+    // Check if email verification is required
+    if (data.user && !data.user.email_confirmed_at) {
       return {
-        error: {
-          message:
-            'Authentication error. Please try the password reset link again.',
-        },
-      }
+        success: true,
+        redirectTo: `/verify-email?email=${encodeURIComponent(email)}`
+      };
     }
-
-    const { error } = await supabase.auth.updateUser({
-      password,
-    })
-
-    if (error) {
-      return { error: normalizeAuthError(error) }
-    }
-
-    revalidatePath('/', 'layout')
-    return { success: true }
-  } catch {
-    return { error: { message: 'Failed to update password' } }
+    
+    revalidatePath('/', 'layout');
+    return { 
+      success: true,
+      redirectTo: returnTo
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: parseAuthError(error)
+    };
   }
 }
 
-export async function signOut() {
-  const supabase = await createClient()
-  await supabase.auth.signOut()
+export async function resetPassword(formData: FormData): Promise<AuthResult> {
+  const supabase = await createClient();
+  
+  const email = (formData.get('email') as string)?.trim().toLowerCase();
+  
+  if (!email) {
+    return {
+      success: false,
+      error: {
+        type: 'invalid-email',
+        message: 'Email is required.'
+      }
+    };
+  }
+  
+  try {
+    // Check if email exists first to give better feedback
+    const { exists, provider } = await checkEmailExists(email);
+    
+    if (!exists) {
+      return {
+        success: false,
+        error: {
+          type: 'invalid-email',
+          message: 'No account found with this email.'
+        }
+      };
+    }
+    
+    if (provider === 'google') {
+      return {
+        success: false,
+        error: {
+          type: 'google-account',
+          message: 'This email is associated with a Google account. Please sign in with Google instead.'
+        }
+      };
+    }
+    
+    // Send reset email
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery`
+    });
+    
+    if (error) {
+      return {
+        success: false,
+        error: parseAuthError(error)
+      };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: parseAuthError(error)
+    };
+  }
+}
 
-  revalidatePath('/', 'layout')
-  return { success: true }
+export async function updatePassword(formData: FormData): Promise<AuthResult> {
+  const supabase = await createClient();
+  
+  const password = formData.get('password') as string;
+  const confirmPassword = formData.get('confirmPassword') as string;
+  
+  // Validate password
+  if (!password) {
+    return {
+      success: false,
+      error: {
+        type: 'weak-password',
+        message: 'Password is required.'
+      }
+    };
+  }
+  
+  if (password.length < 6) {
+    return {
+      success: false,
+      error: {
+        type: 'weak-password',
+        message: 'Password must be at least 6 characters long.'
+      }
+    };
+  }
+  
+  // Check if passwords match when confirmPassword is provided
+  if (confirmPassword && password !== confirmPassword) {
+    return {
+      success: false,
+      error: {
+        type: 'password-mismatch',
+        message: 'Passwords do not match.'
+      }
+    };
+  }
+  
+  try {
+    // Verify user session
+    const { data, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !data?.user) {
+      return {
+        success: false,
+        error: {
+          type: 'expired-token',
+          message: 'Your session has expired. Please try the password reset link again.'
+        }
+      };
+    }
+    
+    // Update the password
+    const { error } = await supabase.auth.updateUser({ password });
+    
+    if (error) {
+      return {
+        success: false,
+        error: parseAuthError(error)
+      };
+    }
+    
+    revalidatePath('/', 'layout');
+    return { 
+      success: true,
+      redirectTo: '/dashboard'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: parseAuthError(error)
+    };
+  }
+}
+
+export async function signOut(): Promise<AuthResult> {
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+    
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (error) {
+    console.error('Error signing out:', error);
+    return {
+      success: false,
+      error: {
+        type: 'unknown',
+        message: 'Failed to sign out. Please try again.'
+      }
+    };
+  }
 }

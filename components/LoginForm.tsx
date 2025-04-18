@@ -1,6 +1,7 @@
+// components/LoginForm.tsx
 'use client'
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -14,11 +15,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-function isValidEmail(email: string): boolean {
-  return EMAIL_REGEX.test(email);
-}
-
 interface LoginFormProps {
   onSubmit: (
     email: string,
@@ -27,7 +23,10 @@ interface LoginFormProps {
   ) => Promise<void>;
   onGoogleSignIn: () => Promise<void>;
   isLoading: boolean;
-  error?: string;
+  error?: {
+    type?: string;
+    message: string;
+  };
 }
 
 export function LoginForm({
@@ -40,63 +39,15 @@ export function LoginForm({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
-  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
-  const autocompleteRef = useRef(false);
-
-  useEffect(() => {
-    if (!isSignUp || !isValidEmail(email)) return;
-
-    let cancelled = false;
-    setLocalError(null);
-
-    async function check() {
-      setIsCheckingEmail(true);
-      try {
-        const resp = await fetch('/api/auth/check-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim() }),
-        });
-        if (!resp.ok) return;
-        const ct = resp.headers.get('content-type') || '';
-        if (!ct.includes('application/json')) return;
-
-        const data = await resp.json();
-        if (data.exists && !cancelled) {
-          let msg = 'This email is already registered. Please sign in instead.';
-          if (data.provider === 'google') {
-            msg += ' You previously signed up with Google.';
-          }
-          setLocalError(msg);
-        }
-      } catch {
-        // silent
-      } finally {
-        if (!cancelled) setIsCheckingEmail(false);
-      }
-    }
-
-    if (autocompleteRef.current) {
-      autocompleteRef.current = false;
-      check();
-    } else {
-      const timer = setTimeout(check, 500);
-      return () => {
-        cancelled = true;
-        clearTimeout(timer);
-      };
-    }
-  }, [email, isSignUp]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isValidEmail(email)) {
-      setLocalError('Please enter a valid email address');
-      return;
+    
+    // Simple validation
+    if (!email || !password) {
+      return; // Form has required attributes, so browser will handle this
     }
-    if (localError) return;
-    setLocalError(null);
+    
     await onSubmit(email.trim(), password, isSignUp);
   }
 
@@ -104,14 +55,19 @@ export function LoginForm({
     <Card className="w-full">
       <CardHeader className="text-center">
         <div className="flex items-center justify-center gap-2 mb-6">
-          <span className="text-3xl">🎬</span>
-          <CardTitle className="text-2xl font-medium">NextTemp</CardTitle>
+          <span className="text-3xl">🔍</span>
+          <CardTitle className="text-2xl font-medium">Detective Cases</CardTitle>
         </div>
-        {(localError || error) && (
-          <Alert variant={error?.includes('Google') ? "default" : "destructive"} className="mb-4">
+        
+        {/* Only show error after submission */}
+        {error && (
+          <Alert variant="destructive" className="mb-4">
             <AlertDescription>
-              {localError || error}
-              {error?.includes('No account found') && (
+              {error.message}
+              
+              {/* Suggest sign up if account not found */}
+              {error.type === 'invalid-credentials' && 
+                error.message.includes('No account found') && (
                 <div className="mt-2">
                   <Button
                     type="button"
@@ -155,50 +111,29 @@ export function LoginForm({
 
         <div className="text-center">
           <CardTitle className="text-2xl font-bold">
-            {isSignUp ? 'Create an account' : 'Are you an Email User?'}
+            {isSignUp ? 'Create an account' : 'Sign in with email'}
           </CardTitle>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-4">
-            <div className="space-y-1">
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => {
-                  // autocomplete detection
-                  autocompleteRef.current =
-                    email.length === 0 && e.target.value.includes('@');
-                  setEmail(e.target.value);
-                  setLocalError(null);
-                }}
-                onFocus={() => {
-                  autocompleteRef.current = false;
-                }}
-                placeholder="Email address"
-                disabled={isLoading}
-                className={
-                  localError && localError.includes('email')
-                    ? 'border-destructive'
-                    : ''
-                }
-              />
-              {isCheckingEmail && (
-                <div className="text-xs text-muted-foreground flex items-center">
-                  <div className="animate-spin mr-1 h-3 w-3 border-t-2 border-primary rounded-full"></div>
-                  Checking email...
-                </div>
-              )}
-            </div>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email address"
+              disabled={isLoading}
+              required
+            />
+            
             <Input
               type="password"
               value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setLocalError(null);
-              }}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               disabled={isLoading}
+              required
+              minLength={6}
             />
           </div>
 
@@ -232,21 +167,17 @@ export function LoginForm({
                 {isSignUp ? 'Signing up...' : 'Signing in...'}
               </span>
             ) : isSignUp ? (
-              'Sign up '
+              'Sign up'
             ) : (
-              'Sign in '
+              'Sign in'
             )}
-            with Email
           </Button>
 
           <div className="text-center">
             <Button
               type="button"
               variant="link"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setLocalError(null);
-              }}
+              onClick={() => setIsSignUp(!isSignUp)}
               className="text-sm p-0 h-auto"
               disabled={isLoading}
             >

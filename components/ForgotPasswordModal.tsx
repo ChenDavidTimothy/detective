@@ -1,3 +1,4 @@
+// components/ForgotPasswordModal.tsx
 'use client';
 
 import { useState } from 'react';
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { resetPassword } from '@/app/login/actions'; // Import the server action
+import { resetPassword } from '@/app/login/actions';
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
@@ -15,20 +16,26 @@ interface ForgotPasswordModalProps {
 
 export function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordModalProps) {
   const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleResetPassword = async () => {
-    if (isLoading || !email) return;
+    if (isLoading) return;
+    
+    // Basic validation on submission
+    if (!email || !email.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
     
     setIsLoading(true);
-    setError('');
+    setError(null);
 
     try {
       // Call the server action with a FormData object
       const formData = new FormData();
-      formData.append('email', email);
+      formData.append('email', email.trim());
       const result = await resetPassword(formData);
       
       if (result.error) {
@@ -43,8 +50,16 @@ export function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordModalProp
     }
   };
 
+  const handleClose = () => {
+    // Reset state when closing
+    setError(null);
+    setSuccess(false);
+    setEmail('');
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Reset Password</DialogTitle>
@@ -62,7 +77,7 @@ export function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordModalProp
             </Alert>
             <DialogFooter>
               <Button
-                onClick={onClose}
+                onClick={handleClose}
                 className="w-full"
               >
                 Close
@@ -92,7 +107,7 @@ export function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordModalProp
             <DialogFooter>
               <Button 
                 variant="outline" 
-                onClick={onClose}
+                onClick={handleClose}
               >
                 Cancel
               </Button>

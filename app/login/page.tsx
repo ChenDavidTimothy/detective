@@ -1,16 +1,42 @@
+// app/login/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { login, signup } from './actions';
 import { signInWithGoogle } from '@/utils/supabase/auth-actions';
 import { LoginForm } from '@/components/LoginForm';
 
 export default function LoginPage() {
-  const [error, setError] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<{type?: string; message: string} | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo') || '/dashboard';
+
+  // Handle URL error parameters
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      let errorMessage = "Authentication error occurred";
+      let errorType = "unknown";
+      
+      switch (errorParam) {
+        case 'auth_callback_error':
+          errorMessage = "Authentication failed. Please try again.";
+          break;
+        case 'password_reset_expired':
+          errorMessage = "Password reset link has expired. Please request a new one.";
+          errorType = "expired-token";
+          break;
+        case 'verification_failed':
+          errorMessage = "Email verification failed. Please request a new verification email.";
+          errorType = "email-not-verified";
+          break;
+      }
+      
+      setError({ type: errorType, message: errorMessage });
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (
     email: string,
@@ -31,14 +57,18 @@ export default function LoginPage() {
         : await login(formData);
 
       if (result?.error) {
-        setError(result.error.message);
+        setError(result.error);
         setIsLoading(false);
       } else {
+        // CHANGE: Force a full page refresh by using window.location
+        // This ensures all components re-render with the latest auth state
         window.location.href = result?.redirectTo || returnTo;
       }
     } catch (err) {
       console.error('Auth error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setError({
+        message: err instanceof Error ? err.message : 'An unexpected error occurred'
+      });
       setIsLoading(false);
     }
   };
@@ -47,11 +77,13 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
       await signInWithGoogle(returnTo);
-      // No need to redirect manually or handle response - the OAuth flow 
-      // will handle the redirect automatically
+      // No need to redirect manually - OAuth flow handles this
     } catch (err) {
       console.error('Google sign in error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setError({
+        type: 'google-auth-error',
+        message: err instanceof Error ? err.message : 'Google sign in failed'
+      });
       setIsLoading(false);
     }
   };

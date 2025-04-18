@@ -6,79 +6,52 @@ export type AuthErrorType =
   | 'expired-token'
   | 'unknown';
 
-export interface NormalizedAuthError {
+export interface AuthError {
   type: AuthErrorType;
   message: string;
-  originalError?: unknown;
 }
 
 /**
- * Normalizes Supabase authentication errors into consistent user-friendly messages
+ * Maps Supabase auth errors to user-friendly errors
  */
-export function normalizeAuthError(error: unknown): NormalizedAuthError {
+export function parseAuthError(error: unknown): AuthError {
   const message = error instanceof Error ? error.message : String(error);
-
-  // Check for email already exists errors
-  if (
-    message.toLowerCase().includes('already registered') ||
-    message.toLowerCase().includes('already in use') ||
-    message.toLowerCase().includes('user already exists') ||
-    message.toLowerCase().includes('email address is already registered') ||
-    message.toLowerCase().includes('account conflict') ||
-    message.toLowerCase().includes('existing account') ||
-    message.toLowerCase().includes('email already exists')
-  ) {
+  const lowerMessage = message.toLowerCase();
+  
+  // Email already exists
+  if (lowerMessage.includes('already registered') || 
+      lowerMessage.includes('already in use') || 
+      lowerMessage.includes('already exists')) {
     return {
       type: 'email-already-exists',
-      message: "Email already exists. Please sign in instead.",
-      originalError: error
+      message: 'This email is already registered. Please sign in instead.'
     };
   }
-
+  
   // Invalid credentials
-  if (
-    message.toLowerCase().includes('invalid login credentials') ||
-    message.toLowerCase().includes('invalid email or password') ||
-    message.toLowerCase().includes('incorrect email') ||
-    message.toLowerCase().includes('incorrect password')
-  ) {
+  if (lowerMessage.includes('invalid login credentials') || 
+      lowerMessage.includes('invalid email') || 
+      lowerMessage.includes('incorrect password')) {
     return {
       type: 'invalid-credentials',
-      message: "The email or password you entered is incorrect.",
-      originalError: error
+      message: 'The email or password you entered is incorrect.'
     };
   }
-
+  
   // Weak password
-  if (
-    message.toLowerCase().includes('password should be') ||
-    message.toLowerCase().includes('password too weak') ||
-    message.toLowerCase().includes('password requirements')
-  ) {
+  if (lowerMessage.includes('password') && 
+      (lowerMessage.includes('too weak') || 
+       lowerMessage.includes('too short') || 
+       lowerMessage.includes('should be'))) {
     return {
       type: 'weak-password',
-      message: "Please use a stronger password. It should be at least 6 characters long.",
-      originalError: error
+      message: 'Password must be at least 6 characters long.'
     };
   }
-
-  // Expired token
-  if (
-    message.toLowerCase().includes('token expired') ||
-    message.toLowerCase().includes('jwt expired') ||
-    message.toLowerCase().includes('session expired')
-  ) {
-    return {
-      type: 'expired-token',
-      message: "Your session has expired. Please sign in again.",
-      originalError: error
-    };
-  }
-
-  // Default case for unknown errors
+  
+  // Default case
   return {
     type: 'unknown',
-    message: "An error occurred during authentication. Please try again.",
-    originalError: error
+    message: 'An error occurred. Please try again.'
   };
 }
