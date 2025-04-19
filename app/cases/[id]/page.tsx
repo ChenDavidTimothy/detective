@@ -1,27 +1,13 @@
 // app/cases/[id]/page.tsx
 import type { Metadata } from "next";
-import { getCachedCaseById, getCachedCases } from "@/lib/services/case-service";
-import { notFound } from "next/navigation";
+import { getCachedCaseById, getCachedCases, getCaseById } from "@/lib/services/case-service";
+import { getCaseMedia } from '@/lib/services/media-service';
 import { createClient } from '@/utils/supabase/server';
 import { generateProductSchema } from "@/utils/structured-data";
 import CaseDetailView from "./case-detail-view";
 import { Suspense } from "react";
 import CaseDetailLoading from "./loading";
-
-// Server action for checking case access
-async function checkCaseAccess(caseId: string, userId?: string) {
-  if (!userId) return { hasAccess: false };
-  
-  const supabase = await createClient();
-  const { data: purchaseData } = await supabase
-    .from('user_purchases')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('case_id', caseId)
-    .maybeSingle();
-    
-  return { hasAccess: !!purchaseData };
-}
+import { checkCaseAccess } from '@/lib/services/access-service';
 
 // Update the type for generateMetadata to handle async params
 export async function generateMetadata(
@@ -88,23 +74,37 @@ export async function generateStaticParams() {
 }
 
 // Update the page component props type and await params
-export default async function CaseDetailPage(
-  { params: paramsPromise }: { params: Promise<{ id: string }> }
-) {
-  const params = await paramsPromise;
-  const id = params.id;
+export default async function CaseDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }> // Type params as a Promise
+}) {
+  // Await the params promise first
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
 
-  // Default isStatic is false, so no need to pass it here for request time
-  const detectiveCase = await getCachedCaseById(id);
-  
+  // Fetch case and media data server-side in parallel
+  const [detectiveCase, caseMedia] = await Promise.all([
+    getCaseById(id, { isStatic: false }),
+    getCaseMedia(id, { isStatic: false })
+  ]);
+
   if (!detectiveCase) {
-    notFound();
+    // Handle case not found, maybe redirect or show a 404 page
+    return <div>Case not found</div>; // Or use Next.js notFound()
+  }
+  
+  // Check user access
+  const supabase = await createClient(); // Use the server client and AWAIT
+  const { data: authData } = await supabase.auth.getUser();
+  
+  // Fetch access status only if user is logged in
+  let hasAccess = false;
+  if (authData?.user?.id) {
+    hasAccess = await checkCaseAccess(id, authData.user.id);
   }
 
-  const supabase = await createClient();
-  const { data: authData } = await supabase.auth.getUser();
-  const accessData = await checkCaseAccess(id, authData?.user?.id);
-  
+  // Pass fetched data and initial access state to the client component
   return (
     <>
       <script
@@ -116,9 +116,10 @@ export default async function CaseDetailPage(
       <Suspense fallback={<CaseDetailLoading />}>
         <CaseDetailView 
           detectiveCase={detectiveCase} 
-          caseId={id} 
-          initialHasAccess={accessData.hasAccess}
-          userId={authData?.user?.id}
+          caseId={id}
+          initialCaseMedia={caseMedia} // Pass fetched media
+          initialHasAccess={hasAccess} // Pass initial access status (already boolean)
+          userId={authData?.user?.id} // Pass userId if available
         />
       </Suspense>
     </>

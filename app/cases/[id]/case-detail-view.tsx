@@ -7,8 +7,10 @@ import dynamic from 'next/dynamic';
 import { ErrorBoundary } from 'react-error-boundary';
 
 import { DetectiveCase } from '@/lib/types/detective-case';
+import { type CaseMedia } from '@/lib/services/media-service-client';
 import { useCaseAccess } from '@/hooks/useCaseAccess';
 import { PaymentSuccessMessage } from '@/components/PaymentSuccessMessage';
+import CaseMediaSection from './case-media-section';
 
 import {
   Card,
@@ -45,6 +47,7 @@ type CaseDetailViewProps = {
   detectiveCase: DetectiveCase;
   caseId: string;
   initialHasAccess: boolean;
+  initialCaseMedia: CaseMedia[];
   userId?: string;
 };
 
@@ -52,6 +55,7 @@ export default function CaseDetailView({
   detectiveCase,
   caseId,
   initialHasAccess,
+  initialCaseMedia,
   userId,
 }: CaseDetailViewProps) {
   const router = useRouter();
@@ -108,12 +112,13 @@ export default function CaseDetailView({
               {detectiveCase.content ||
                 'Here you would display the full case details that are only available to users who have purchased the case.'}
             </p>
-            <div className="p-4 bg-muted rounded-lg">
-              <p className="font-medium">Case Evidence #1</p>
-              <p className="text-sm text-muted-foreground">
-                First piece of evidence...
-              </p>
-            </div>
+          </div>
+          <div className="mt-6">
+            <CaseMediaSection 
+              caseId={caseId} 
+              initialMedia={initialCaseMedia}
+              initialHasAccess={hasAccess}
+            />
           </div>
         </>
       );

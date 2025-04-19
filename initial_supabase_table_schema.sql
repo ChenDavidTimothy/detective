@@ -8,6 +8,7 @@ DROP TABLE IF EXISTS public.user_purchases CASCADE;
 DROP TABLE IF EXISTS public.detective_cases CASCADE;
 DROP TABLE IF EXISTS public.user_preferences CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
+DROP TABLE IF EXISTS public.case_media CASCADE;
 
 -- -------------------------------------
 -- USER RELATED TABLES

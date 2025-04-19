@@ -8,16 +8,16 @@ interface VideoModalProps {
   isOpen: boolean;
   onClose: () => void;
   videoId: string;
+  title?: string;
+  description?: string;
 }
 
-export function VideoModal({ isOpen, onClose, videoId }: VideoModalProps) {
+export function VideoModal({ isOpen, onClose, videoId, title, description }: VideoModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-4xl border-none bg-transparent shadow-none p-0">
-        {/* Visually hidden title for accessibility */}
-        <DialogTitle className="sr-only">Demo Video</DialogTitle>
+        <DialogTitle className="sr-only">{title || 'Video'}</DialogTitle>
         <div className="relative w-full">
-          {/* Close button */}
           <Button
             onClick={onClose}
             variant="ghost"
@@ -28,7 +28,6 @@ export function VideoModal({ isOpen, onClose, videoId }: VideoModalProps) {
             <span className="sr-only">Close</span>
           </Button>
           
-          {/* Video container with 16:9 aspect ratio */}
           <div className="relative pt-[56.25%] rounded-xl overflow-hidden">
             <iframe
               src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
@@ -37,6 +36,13 @@ export function VideoModal({ isOpen, onClose, videoId }: VideoModalProps) {
               allowFullScreen
             />
           </div>
+          
+          {(title || description) && (
+            <div className="bg-background/90 p-4 rounded-b-xl mt-[-8px]">
+              {title && <h3 className="text-lg font-medium text-primary-foreground">{title}</h3>}
+              {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
