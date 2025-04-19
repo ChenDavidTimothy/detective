@@ -87,7 +87,7 @@ export async function generateStaticParams() {
   }));
 }
 
-export default async function CaseDetailPage({ params }: Props) {
+export default async function CaseDetailPage({ params }: { params: { id: string } }) {
   const id = params.id; // Use params directly
 
   // Default isStatic is false, so no need to pass it here for request time
