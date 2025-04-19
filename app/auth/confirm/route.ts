@@ -2,8 +2,11 @@ import { type EmailOtpType } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 
+// Ensure NEXT_PUBLIC_APP_URL is defined and has a default fallback
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'; // Provide a sensible default
+
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
   const next = searchParams.get('next') ?? '/dashboard'
@@ -17,13 +20,13 @@ export async function GET(request: Request) {
     })
     
     if (!error) {
-      // Redirect user to dashboard after successful verification
-      return NextResponse.redirect(`${origin}${next}`)
+      // Redirect user to dashboard after successful verification using the canonical APP_URL
+      return NextResponse.redirect(`${APP_URL}${next}`)
     }
     
     console.error('Error verifying email:', error)
   }
 
-  // Redirect to login with error if verification fails
-  return NextResponse.redirect(`${origin}/login?error=verification_failed`)
+  // Redirect to login with error if verification fails, using the canonical APP_URL
+  return NextResponse.redirect(`${APP_URL}/login?error=verification_failed`)
 }
