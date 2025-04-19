@@ -23,10 +23,11 @@ async function checkCaseAccess(caseId: string, userId?: string) {
   return { hasAccess: !!purchaseData };
 }
 
-// Update the type for generateMetadata
+// Update the type for generateMetadata to handle async params
 export async function generateMetadata(
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ): Promise<Metadata> {
+  const params = await paramsPromise;
   const id = params.id;
 
   const detectiveCase = await getCachedCaseById(id);
