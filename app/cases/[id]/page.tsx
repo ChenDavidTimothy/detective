@@ -8,13 +8,6 @@ import CaseDetailView from "./case-detail-view";
 import { Suspense } from "react";
 import CaseDetailLoading from "./loading";
 
-// Define a consistent interface for page props
-interface PageProps {
-  params: {
-    id: string;
-  };
-}
-
 // Server action for checking case access
 async function checkCaseAccess(caseId: string, userId?: string) {
   if (!userId) return { hasAccess: false };
@@ -30,9 +23,11 @@ async function checkCaseAccess(caseId: string, userId?: string) {
   return { hasAccess: !!purchaseData };
 }
 
-// Use the PageProps interface for generateMetadata
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const id = params.id; // Use params directly
+// Update the type for generateMetadata
+export async function generateMetadata(
+  { params }: { params: { id: string } }
+): Promise<Metadata> {
+  const id = params.id;
 
   const detectiveCase = await getCachedCaseById(id);
   
@@ -91,9 +86,11 @@ export async function generateStaticParams() {
   }));
 }
 
-// Use the PageProps interface for the page component
-export default async function CaseDetailPage({ params }: PageProps) {
-  const id = params.id; // Use params directly
+// Update the page component type
+export default async function CaseDetailPage(
+  { params }: { params: { id: string } }
+) {
+  const id = params.id;
 
   // Default isStatic is false, so no need to pass it here for request time
   const detectiveCase = await getCachedCaseById(id);
