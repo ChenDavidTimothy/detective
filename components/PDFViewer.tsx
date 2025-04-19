@@ -154,7 +154,7 @@ export function PDFViewer({ documentUrl }: PDFViewerProps) {
           options={pdfOptions}
           externalLinkTarget="_blank"
           loading={null} // Prevent default loading indicator
-          className={isDocumentLoading ? 'opacity-0' : 'min-h-full flex justify-center p-4'} // Hide visually while loading
+          className={isDocumentLoading ? 'opacity-0' : 'min-h-full flex p-4'}
         >
           {numPages && (
             <Page
@@ -164,7 +164,7 @@ export function PDFViewer({ documentUrl }: PDFViewerProps) {
               rotate={rotation}
               renderTextLayer
               renderAnnotationLayer
-              className="shadow-md mx-auto max-w-full"
+              className="shadow-md mx-auto"
             />
           )}
         </Document>
