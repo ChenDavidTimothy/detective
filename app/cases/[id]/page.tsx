@@ -28,9 +28,7 @@ async function checkCaseAccess(caseId: string, userId?: string) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  // Although params isn't a promise, awaiting it follows Next.js docs for sync access errors.
-  const awaitedParams = await params;
-  const id = awaitedParams.id; // Use awaited params
+  const id = params.id; // Use params directly
 
   const detectiveCase = await getCachedCaseById(id);
   
@@ -90,9 +88,7 @@ export async function generateStaticParams() {
 }
 
 export default async function CaseDetailPage({ params }: Props) {
-  // Although params isn't a promise, awaiting it follows Next.js docs for sync access errors.
-  const awaitedParams = await params;
-  const id = awaitedParams.id; // Use awaited params
+  const id = params.id; // Use params directly
 
   // Default isStatic is false, so no need to pass it here for request time
   const detectiveCase = await getCachedCaseById(id);
