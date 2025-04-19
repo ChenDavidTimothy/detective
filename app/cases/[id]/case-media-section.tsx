@@ -103,13 +103,20 @@ export default function CaseMediaSection({
       </CardHeader>
       
       <CardContent>
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="all">All Evidence</TabsTrigger>
-            {media.filter(item => item.media_type === 'image').length > 0 && <TabsTrigger value="images">Images</TabsTrigger>}
-            {media.filter(item => item.media_type === 'document').length > 0 && <TabsTrigger value="documents">Documents</TabsTrigger>}
-            {media.filter(item => item.media_type === 'audio').length > 0 && <TabsTrigger value="audio">Audio</TabsTrigger>}
-            {media.filter(item => item.media_type === 'video').length > 0 && <TabsTrigger value="videos">Videos</TabsTrigger>}
+        <Tabs 
+          defaultValue="all" 
+          className="w-full"
+        >
+          <TabsList className="mb-6 w-full flex flex-wrap gap-2">
+            <TabsTrigger value="all" className="flex-grow min-w-fit">All Evidence</TabsTrigger>
+            {media.filter(item => item.media_type === 'image').length > 0 && 
+              <TabsTrigger value="images" className="flex-grow min-w-fit">Images</TabsTrigger>}
+            {media.filter(item => item.media_type === 'document').length > 0 && 
+              <TabsTrigger value="documents" className="flex-grow min-w-fit">Documents</TabsTrigger>}
+            {media.filter(item => item.media_type === 'audio').length > 0 && 
+              <TabsTrigger value="audio" className="flex-grow min-w-fit">Audio</TabsTrigger>}
+            {media.filter(item => item.media_type === 'video').length > 0 && 
+              <TabsTrigger value="videos" className="flex-grow min-w-fit">Videos</TabsTrigger>}
           </TabsList>
           
           <TabsContent value="all">
