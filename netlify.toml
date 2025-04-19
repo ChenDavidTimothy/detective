@@ -1,0 +1,38 @@
+# Example netlify.toml for a Next.js project
+
+[build]
+  # Build command (standard for Next.js)
+  command = "next build"
+
+  # Directory containing the build output (Netlify's Next.js plugin handles this)
+  # The publish directory is automatically set to ".next" by the plugin.
+  # You typically don't need to set 'publish' manually unless overriding plugin behavior.
+  # publish = ".next"
+
+  # Directory containing Netlify Functions (optional, uncomment if needed)
+  # functions = "netlify/functions"
+
+# The Netlify plugin for Next.js automatically handles most configurations.
+# Ensure it's added via the Netlify UI or installed as a dev dependency:
+# npm install --save-dev @netlify/plugin-nextjs
+# or
+# yarn add --dev @netlify/plugin-nextjs
+
+[[plugins]]
+  # Essential plugin for deploying Next.js sites on Netlify
+  package = "@netlify/plugin-nextjs"
+
+# Optional: Environment variables can be set here or in the Netlify UI
+#[build.environment]
+#  NEXT_PUBLIC_API_URL = "https://yourapi.com"
+
+# Optional: Redirects and rewrites
+#[[redirects]]
+#  from = "/old-path"
+#  to = "/new-path"
+#  status = 301
+
+#[[redirects]]
+#  from = "/*"
+#  to = "/index.html"
+#  status = 200 
