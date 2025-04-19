@@ -86,10 +86,11 @@ export async function generateStaticParams() {
   }));
 }
 
-// Update the page component type
+// Update the page component props type and await params
 export default async function CaseDetailPage(
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
+  const params = await paramsPromise;
   const id = params.id;
 
   // Default isStatic is false, so no need to pass it here for request time
