@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { X, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import Image from 'next/image';
@@ -106,17 +106,6 @@ export function AudioModal({ isOpen, onClose, audioUrl, title, coverImage }: Aud
         <DialogTitle className="sr-only">{title || 'Audio'}</DialogTitle>
         
         <div className="relative w-full">
-          {/* Close button */}
-          <Button
-            onClick={onClose}
-            variant="ghost"
-            size="icon"
-            className="absolute top-3 right-3 z-10"
-          >
-            <X className="w-5 h-5" />
-            <span className="sr-only">Close</span>
-          </Button>
-          
           {/* Cover image - Ensure parent div has relative positioning */}
           <div className="relative aspect-square w-full bg-gradient-to-br from-primary/10 to-primary/5">
             {coverImage ? (

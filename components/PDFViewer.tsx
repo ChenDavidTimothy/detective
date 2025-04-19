@@ -1,28 +1,26 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
-import { Button } from '@/components/ui/button'
-import {
-  ChevronLeft,
-  ChevronRight,
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  AlertCircle,
-} from 'lucide-react'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import 'react-pdf/dist/esm/Page/TextLayer.css'
+import { Button } from '@/components/ui/button'
+import {
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  RotateCw,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 
-// PDF.js worker from CDN
-pdfjs.GlobalWorkerOptions.workerSrc =
-  `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
-// These options never change, so no need for useMemo
 const pdfOptions = {
-  cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/`,
+  cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
   cMapPacked: true,
-  standardFontDataUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
+  standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
 }
 
 interface PDFViewerProps {
@@ -32,138 +30,144 @@ interface PDFViewerProps {
 export function PDFViewer({ documentUrl }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
-  const [scale, setScale] = useState(1)
+  const [scale, setScale] = useState(1.0)
   const [rotation, setRotation] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+  const [loadError, setLoadError] = useState<Error | null>(null)
+  const [isDocumentLoading, setIsDocumentLoading] = useState(true); // Added loading state
 
-  useEffect(() => {
-    setNumPages(null)
-    setPageNumber(1)
-    setScale(1)
-    setRotation(0)
-    setIsLoading(true)
-    setError(null)
-  }, [documentUrl])
-
-  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
     setNumPages(numPages)
-    setPageNumber(1)
-    setIsLoading(false)
-  }
+    setPageNumber(1) // Reset to first page on new document load
+    setScale(1.0) // Reset scale
+    setRotation(0) // Reset rotation
+    setLoadError(null)
+    setIsDocumentLoading(false); // Set loading to false
+  }, [])
 
-  const onDocumentLoadError = (err: Error) => {
-    let msg = err.message
-    if (msg.includes('worker')) {
-      msg = 'PDF worker failed to load. Check your connection.'
-    } else if (msg.match(/Missing PDF|Invalid PDF/)) {
-      msg = 'The document is corrupted or invalid.'
-    } else if (msg.includes('PasswordException')) {
-      msg = 'PDF is password protected.'
-    } else if (msg.includes('CORS')) {
-      msg = 'Access to this document is restricted by CORS.'
-    }
-    setError(new Error(msg))
-    setIsLoading(false)
+  const onDocumentLoadError = useCallback((error: Error) => {
+    console.error('Failed to load PDF:', error)
+    setLoadError(error)
     setNumPages(null)
-  }
+    setIsDocumentLoading(false); // Set loading to false even on error
+  }, [])
 
-  const goPrev = () => setPageNumber((p) => Math.max(p - 1, 1))
-  const goNext = () =>
-    setPageNumber((p) => (numPages ? Math.min(p + 1, numPages) : p))
-  const zoomIn = () => setScale((s) => s + 0.1)
-  const zoomOut = () => setScale((s) => Math.max(s - 0.1, 0.5))
-  const rotate = () => setRotation((r) => (r + 90) % 360)
+  // Wrap navigation functions in useCallback
+  const goToPrevPage = useCallback(() => {
+    setPageNumber((prev) => Math.max(prev - 1, 1))
+  }, []);
+
+  const goToNextPage = useCallback(() => {
+    setPageNumber((prev) => Math.min(prev + 1, numPages || 1))
+  }, [numPages]);
+
+  // Wrap zoom functions in useCallback (optional but good practice)
+  const zoomIn = useCallback(() => setScale((prev) => Math.min(prev + 0.2, 3.0)), []);
+  const zoomOut = useCallback(() => setScale((prev) => Math.max(prev - 0.2, 0.5)), []);
+
+  // Wrap rotation functions in useCallback (optional but good practice)
+  const rotateLeft = useCallback(() => setRotation((prev) => (prev - 90) % 360), []);
+  const rotateRight = useCallback(() => setRotation((prev) => (prev + 90) % 360), []);
+
+  // Update dependencies for keydown effect
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!numPages) return
+      switch (event.key) {
+        case 'ArrowLeft':
+          goToPrevPage()
+          break
+        case 'ArrowRight':
+          goToNextPage()
+          break
+        default:
+          break
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [numPages, goToPrevPage, goToNextPage])
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-destructive">
+        <p>Error loading PDF:</p>
+        <p>{loadError.message}</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex flex-col items-center w-full h-full">
-      {!isLoading && !error && numPages && (
-        <div className="flex items-center gap-2 p-2 bg-card rounded-full mb-4 shadow-xs">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={goPrev}
-            disabled={pageNumber <= 1}
-          >
+    <div className="flex flex-col items-center h-full w-full bg-muted">
+      {/* Controls UI - Show only when document is loaded */} 
+      {numPages && !isDocumentLoading && (
+        <div className="flex items-center justify-center gap-2 p-2 bg-card rounded-full mb-4 shadow-sm z-10 sticky top-4 flex-wrap">
+          {/* Page Navigation */}
+          <Button variant="ghost" size="icon" onClick={goToPrevPage} disabled={pageNumber <= 1}>
             <ChevronLeft className="h-5 w-5" />
-            <span className="sr-only">Prev</span>
           </Button>
-          <span className="text-sm px-2">
-            {pageNumber} / {numPages}
+          <span className="text-sm font-medium whitespace-nowrap">
+            Page {pageNumber} of {numPages}
           </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={goNext}
-            disabled={pageNumber >= numPages}
-          >
+          <Button variant="ghost" size="icon" onClick={goToNextPage} disabled={pageNumber >= (numPages || 0)}>
             <ChevronRight className="h-5 w-5" />
-            <span className="sr-only">Next</span>
           </Button>
-          <div className="w-px h-6 bg-border mx-1" />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={zoomOut}
-            disabled={scale <= 0.5}
-          >
+
+          <span className="border-l h-6 mx-2"></span>
+
+          {/* Zoom Controls */}
+          <Button variant="ghost" size="icon" onClick={zoomOut} disabled={scale <= 0.5}>
             <ZoomOut className="h-5 w-5" />
-            <span className="sr-only">Zoom Out</span>
           </Button>
-          <Button variant="ghost" size="icon" onClick={zoomIn}>
+          <span className="text-sm font-medium min-w-[40px] text-center">{(scale * 100).toFixed(0)}%</span>
+          <Button variant="ghost" size="icon" onClick={zoomIn} disabled={scale >= 3.0}>
             <ZoomIn className="h-5 w-5" />
-            <span className="sr-only">Zoom In</span>
           </Button>
-          <Button variant="ghost" size="icon" onClick={rotate}>
+
+          <span className="border-l h-6 mx-2"></span>
+
+          {/* Rotation Controls */}
+          <Button variant="ghost" size="icon" onClick={rotateLeft}>
+            <RotateCcw className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={rotateRight}>
             <RotateCw className="h-5 w-5" />
-            <span className="sr-only">Rotate</span>
           </Button>
         </div>
       )}
 
-      <div className="relative flex-grow w-full h-full flex justify-center items-center overflow-auto">
-        {isLoading && (
+      {/* Document container with improved overflow handling */}
+      <div className="w-full flex-grow overflow-auto relative">
+        {isDocumentLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/50">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
-            <p>Loading document...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+            <p className="text-lg font-medium">Loading document...</p>
           </div>
         )}
-
-        {error && (
-          <div className="flex flex-col items-center justify-center p-6 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-            <h3 className="text-lg font-medium mb-2">Failed to render PDF</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              {error.message}
-            </p>
-            <Button onClick={() => window.location.reload()} variant="outline">
-              Reload Page
-            </Button>
-          </div>
-        )}
-
-        {!error && (
-          <Document
-            file={documentUrl}
-            onLoadSuccess={onDocumentLoadSuccess}
-            onLoadError={onDocumentLoadError}
-            options={pdfOptions}
-            externalLinkTarget="_blank"
-            className="flex justify-center"
-          >
-            {numPages && (
-              <Page
-                key={pageNumber}
-                pageNumber={pageNumber}
-                scale={scale}
-                rotate={rotation}
-                renderTextLayer
-                renderAnnotationLayer
-                className="shadow-md"
-              />
-            )}
-          </Document>
-        )}
+        
+        <Document
+          file={documentUrl}
+          onLoadSuccess={onDocumentLoadSuccess}
+          onLoadError={onDocumentLoadError}
+          options={pdfOptions}
+          externalLinkTarget="_blank"
+          loading={null} // Prevent default loading indicator
+          className={isDocumentLoading ? 'opacity-0' : 'min-h-full flex justify-center p-4'} // Hide visually while loading
+        >
+          {numPages && (
+            <Page
+              key={`${pageNumber}-${scale}-${rotation}`}
+              pageNumber={pageNumber}
+              scale={scale}
+              rotate={rotation}
+              renderTextLayer
+              renderAnnotationLayer
+              className="shadow-md mx-auto max-w-full"
+            />
+          )}
+        </Document>
       </div>
     </div>
   )

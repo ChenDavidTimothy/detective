@@ -1,21 +1,21 @@
 'use client'
 
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { X } from 'lucide-react';
+import { Dialog, DialogContentWithoutClose, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
 
-interface VideoModalProps {
+type VideoModalProps = {
   isOpen: boolean;
   onClose: () => void;
   videoId: string;
   title?: string;
   description?: string;
-}
+};
 
 export function VideoModal({ isOpen, onClose, videoId, title, description }: VideoModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-4xl border-none bg-transparent shadow-none p-0">
+      <DialogContentWithoutClose className="sm:max-w-4xl border-none bg-transparent shadow-none p-0">
         <DialogTitle className="sr-only">{title || 'Video'}</DialogTitle>
         <div className="relative w-full">
           <Button
@@ -44,7 +44,7 @@ export function VideoModal({ isOpen, onClose, videoId, title, description }: Vid
             </div>
           )}
         </div>
-      </DialogContent>
+      </DialogContentWithoutClose>
     </Dialog>
   );
 }

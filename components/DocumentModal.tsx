@@ -1,33 +1,25 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContentWithoutClose as DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { X, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import dynamic from 'next/dynamic'
-import { Badge } from '@/components/ui/badge'
-
-// Dynamically import react-pdf with no SSR to avoid hydration issues
-const PDFViewer = dynamic(
-  () => import('./PDFViewer').then((mod) => mod.PDFViewer),
-  { ssr: false, loading: () => <PDFLoadingFallback /> }
-)
-
-// Separate loading component for better UX
-function PDFLoadingFallback() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full min-h-96">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-      <p className="text-muted-foreground">Loading PDF viewer...</p>
-    </div>
-  )
-}
+import { PDFViewer } from '@/components/PDFViewer'
+import { AlertCircle, FileText } from 'lucide-react'
 
 interface DocumentModalProps {
   isOpen: boolean
   onClose: () => void
   documentUrl: string
   title?: string
+  description?: string
+  fileName?: string
 }
 
 export function DocumentModal({
@@ -35,17 +27,19 @@ export function DocumentModal({
   onClose,
   documentUrl,
   title,
+  description,
+  fileName,
 }: DocumentModalProps) {
   const [fetchStatus, setFetchStatus] = useState<
     'idle' | 'loading' | 'success' | 'error'
   >('idle')
-  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isOpen || !documentUrl) return
 
     setFetchStatus('loading')
-    setFetchError(null)
 
     fetch(documentUrl, { method: 'HEAD' })
       .then((res) => {
@@ -55,83 +49,97 @@ export function DocumentModal({
       .catch((err) => {
         console.error('Document URL fetch error:', err)
         setFetchStatus('error')
-        setFetchError(`Could not access document: ${err.message}`)
       })
   }, [isOpen, documentUrl])
 
   useEffect(() => {
     if (!isOpen) {
       setFetchStatus('idle')
-      setFetchError(null)
+      setDownloadError(null)
     }
   }, [isOpen])
+
+  const handleDownload = async () => {
+    if (!documentUrl) return
+    setIsDownloading(true)
+    setDownloadError(null)
+
+    try {
+      const response = await fetch(documentUrl)
+      const blob = await response.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = fileName || title || 'document'
+      link.click()
+    } catch (error) {
+      console.error('Error downloading document:', error)
+      setDownloadError('Error downloading document. Please try again later.')
+    } finally {
+      setIsDownloading(false)
+    }
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-5xl w-[95vw] h-[95vh] p-0 flex flex-col">
-        <DialogTitle className="sr-only">{title || 'Document'}</DialogTitle>
-
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b shrink-0">
-          <div className="flex items-center space-x-4">
-            {title && <h3 className="text-lg font-medium">{title}</h3>}
-            {fetchStatus === 'loading' && (
-              <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                Loading document...
-              </Badge>
-            )}
-            {fetchStatus === 'error' && <Badge variant="destructive">Error</Badge>}
+        <DialogHeader className="flex flex-row items-center justify-between p-4 border-b bg-card sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            <FileText className="w-5 h-5 text-primary" />
+            <div>
+              <DialogTitle className="text-lg font-medium leading-tight">
+                {title || fileName || 'Document'}
+              </DialogTitle>
+              {description && (
+                <DialogDescription className="text-sm text-muted-foreground mt-1">
+                  {description}
+                </DialogDescription>
+              )}
+            </div>
           </div>
-
           <div className="flex items-center gap-2">
-            {fetchStatus === 'success' && (
+            {fetchStatus === 'success' && documentUrl && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(documentUrl, '_blank')}
-                className="text-xs"
+                onClick={handleDownload}
+                disabled={isDownloading}
               >
-                <Download className="h-4 w-4 mr-1" />
-                Download
+                <Download className="w-4 h-4 mr-2" />
+                {isDownloading ? 'Downloading...' : 'Download'}
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-5 w-5" />
+            <Button onClick={onClose} variant="ghost" size="icon">
+              <X className="w-5 h-5" />
               <span className="sr-only">Close</span>
             </Button>
           </div>
-        </div>
+        </DialogHeader>
 
-        {/* Content */}
-        <div className="flex-grow relative flex justify-center items-center p-4 bg-muted overflow-auto">
+        <div className="flex-grow relative flex flex-col h-full overflow-hidden">
           {fetchStatus === 'loading' && (
-            <div className="flex flex-col items-center justify-center h-full">
+            <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-              <p>Verifying document URL...</p>
+              <p className="text-lg font-medium">Preparing document...</p>
+              <p className="text-muted-foreground text-sm mt-1">This might take a moment.</p>
             </div>
           )}
-
+          
           {fetchStatus === 'error' && (
-            <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-6 max-w-md">
-                <p className="text-destructive font-medium mb-3">
-                  Failed to load document
-                </p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {fetchError}
-                </p>
-                <Button
-                  onClick={() => window.open(documentUrl, '_blank')}
-                  variant="outline"
-                  size="sm"
-                >
-                  Try in New Tab
-                </Button>
-              </div>
+            <div className="flex flex-col items-center justify-center h-full text-center p-8 text-destructive">
+              <AlertCircle className="w-12 h-12 mb-4" />
+              <p className="text-lg font-medium">Error accessing document</p>
+              <p className="text-sm mt-1">There was a problem verifying the document URL. Please try again later.</p>
             </div>
           )}
 
-          {fetchStatus === 'success' && (
+          {downloadError && (
+            <div className="absolute bottom-4 left-4 right-4 bg-destructive/10 border border-destructive text-destructive text-sm p-3 rounded-md z-30 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {downloadError}
+            </div>
+          )}
+
+          {fetchStatus === 'success' && documentUrl && (
             <PDFViewer documentUrl={documentUrl} />
           )}
         </div>
