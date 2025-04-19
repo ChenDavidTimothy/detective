@@ -1,18 +1,7 @@
 // lib/services/media-service.ts - Keep this for server components only
 import { createClient } from '@/utils/supabase/server'; // Only server client
 import { createStaticClient } from '@/utils/supabase/static-client';
-
-export interface CaseMedia { // Keep the interface if used elsewhere, or move it
-  id: string;
-  case_id: string;
-  title: string;
-  description?: string;
-  media_type: 'image' | 'document' | 'audio' | 'video';
-  storage_path?: string;
-  external_url?: string;
-  cover_image_url?: string;
-  display_order: number;
-}
+import type { CaseMedia } from '@/lib/types/case-media'; // Import the type
 
 type ServiceOptions = { isStatic?: boolean };
 

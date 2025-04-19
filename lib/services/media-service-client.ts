@@ -1,16 +1,5 @@
 import { createClient } from '@/utils/supabase/client';
-
-export interface CaseMedia {
-  id: string;
-  case_id: string;
-  title: string;
-  description?: string;
-  media_type: 'image' | 'document' | 'audio' | 'video';
-  storage_path?: string;
-  external_url?: string;
-  cover_image_url?: string;
-  display_order: number;
-}
+import type { CaseMedia } from '@/lib/types/case-media';
 
 /**
  * Fetch all media for a specific case - CLIENT VERSION.

@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { File, Image, FileText, Video, Volume } from 'lucide-react';
 import NextImage from 'next/image';
-import { type CaseMedia } from '@/lib/services/media-service-client';
+import { type CaseMedia } from '@/lib/types/case-media';
 
 type MediaWithUrl = CaseMedia & { url?: string };
 

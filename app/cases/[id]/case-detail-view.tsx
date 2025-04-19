@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 import { ErrorBoundary } from 'react-error-boundary';
 
 import { DetectiveCase } from '@/lib/types/detective-case';
-import { type CaseMedia } from '@/lib/services/media-service-client';
+import { type CaseMedia } from '@/lib/types/case-media';
 import { useCaseAccess } from '@/hooks/useCaseAccess';
 import { PaymentSuccessMessage } from '@/components/PaymentSuccessMessage';
 import CaseMediaSection from './case-media-section';
