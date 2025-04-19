@@ -10,7 +10,13 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config, { isServer: _isServer }) => {
+  webpack: (config, { isServer }) => {
+    // PDF.js worker config
+    if (!isServer) {
+      config.resolve.alias.canvas = false;
+      config.resolve.alias.encoding = false;
+    }
+
     config.ignoreWarnings = [
       { module: /node_modules\/punycode/ }
     ];
