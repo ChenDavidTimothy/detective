@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getCaseMediaClient, getSignedUrl, type CaseMedia } from '@/lib/services/media-service-client';
+import { getCaseMediaClient, getSignedUrl } from '@/lib/services/media-service-client';
+import type { CaseMedia } from '@/lib/types/case-media';
 
 export type MediaWithUrl = CaseMedia & { url?: string };
 
