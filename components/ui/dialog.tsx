@@ -118,12 +118,13 @@ function DialogDescription({
   )
 }
 
-// Add the new component without the close button
+// Modify the component to accept onClose and render a close button
 function DialogContentWithoutClose({
   className,
   children,
+  onClose,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content>) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & { onClose?: () => void }) {
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -136,6 +137,15 @@ function DialogContentWithoutClose({
         {...props}
       >
         {children}
+        {onClose && (
+          <DialogPrimitive.Close
+            onClick={onClose}
+            className="absolute top-4 right-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-50"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
       </DialogPrimitive.Content>
     </DialogPortal>
   );

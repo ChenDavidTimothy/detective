@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContentWithoutClose, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -13,9 +13,10 @@ interface AudioModalProps {
   audioUrl: string;
   title?: string;
   coverImage?: string;
+  description?: string;
 }
 
-export function AudioModal({ isOpen, onClose, audioUrl, title, coverImage }: AudioModalProps) {
+export function AudioModal({ isOpen, onClose, audioUrl, title, coverImage, description }: AudioModalProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -102,8 +103,13 @@ export function AudioModal({ isOpen, onClose, audioUrl, title, coverImage }: Aud
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md border-none bg-background shadow-xs p-0 rounded-xl overflow-hidden">
-        <DialogTitle className="sr-only">{title || 'Audio'}</DialogTitle>
+      <DialogContentWithoutClose onClose={onClose} className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title || 'Audio Player'}</DialogTitle>
+          {description && (
+            <DialogDescription>{description}</DialogDescription>
+          )}
+        </DialogHeader>
         
         <div className="relative w-full">
           {/* Cover image - Ensure parent div has relative positioning */}
@@ -206,7 +212,7 @@ export function AudioModal({ isOpen, onClose, audioUrl, title, coverImage }: Aud
             </div>
           </div>
         </div>
-      </DialogContent>
+      </DialogContentWithoutClose>
     </Dialog>
   );
 } 

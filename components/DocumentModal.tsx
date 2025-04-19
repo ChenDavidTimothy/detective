@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { X, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PDFViewer } from '@/components/PDFViewer'
 import { AlertCircle, FileText } from 'lucide-react'
@@ -81,7 +81,7 @@ export function DocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-5xl w-[95vw] h-[95vh] p-0 flex flex-col">
+      <DialogContent onClose={onClose} className="sm:max-w-5xl w-[95vw] h-[95vh] p-0 flex flex-col">
         <DialogHeader className="flex flex-row items-center justify-between p-4 border-b bg-card sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <FileText className="w-5 h-5 text-primary" />
@@ -96,7 +96,7 @@ export function DocumentModal({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pr-12">
             {fetchStatus === 'success' && documentUrl && (
               <Button
                 variant="outline"
@@ -108,10 +108,6 @@ export function DocumentModal({
                 {isDownloading ? 'Downloading...' : 'Download'}
               </Button>
             )}
-            <Button onClick={onClose} variant="ghost" size="icon">
-              <X className="w-5 h-5" />
-              <span className="sr-only">Close</span>
-            </Button>
           </div>
         </DialogHeader>
 

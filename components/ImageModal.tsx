@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Dialog, DialogContentWithoutClose, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
 import Lightbox from "yet-another-react-lightbox";
 import Captions from "yet-another-react-lightbox/plugins/captions";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
@@ -30,22 +28,12 @@ export function ImageModal({ isOpen, onClose, imageUrl, title, description }: Im
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContentWithoutClose 
+        onClose={onClose}
         className="sm:max-w-4xl border-none bg-transparent shadow-none p-0"
-        onClick={handleContentClick} // Add click handler here
+        onClick={handleContentClick}
       >
         <DialogTitle className="sr-only">{title || 'Image'}</DialogTitle>
         <div className="relative w-full">
-          {/* Single close button */}
-          <Button
-            onClick={onClose}
-            variant="ghost"
-            size="icon"
-            className="absolute -top-12 right-0 text-white hover:text-gray-300 bg-transparent z-50"
-          >
-            <X className="w-6 h-6" />
-            <span className="sr-only">Close</span>
-          </Button>
-          
           <div className="bg-black rounded-xl overflow-hidden">
             <div 
               className="relative h-[80vh] cursor-zoom-in" 
