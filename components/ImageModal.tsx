@@ -1,89 +1,73 @@
 'use client'
 
-import { useState } from 'react';
-import Image from 'next/image';
-import { Dialog, DialogContentWithoutClose, DialogTitle } from '@/components/ui/dialog';
-import Lightbox from "yet-another-react-lightbox";
-import Captions from "yet-another-react-lightbox/plugins/captions";
-import Zoom from "yet-another-react-lightbox/plugins/zoom";
-import "yet-another-react-lightbox/styles.css";
-import "yet-another-react-lightbox/plugins/captions.css";
+import { useState } from 'react'
+import Lightbox from "yet-another-react-lightbox"
+import Zoom from "yet-another-react-lightbox/plugins/zoom"
+import Captions from "yet-another-react-lightbox/plugins/captions"
+import "yet-another-react-lightbox/styles.css"
+import "yet-another-react-lightbox/plugins/captions.css"
 
 type ImageModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  imageUrl: string;
-  title?: string;
-  description?: string;
-};
+  isOpen: boolean
+  onClose: () => void
+  imageUrl: string
+  title?: string
+  description?: string
+}
 
-export function ImageModal({ isOpen, onClose, imageUrl, title, description }: ImageModalProps) {
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-
-  // Handler to prevent modal from closing when clicking inside
-  const handleContentClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
+export function ImageModal({ 
+  isOpen, 
+  onClose, 
+  imageUrl, 
+  title, 
+  description 
+}: ImageModalProps) {
+  // Track zoom level for UI indicators if needed
+  const [_currentZoom, _setCurrentZoom] = useState(1)
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContentWithoutClose 
-        onClose={onClose}
-        className="sm:max-w-4xl border-none bg-transparent shadow-none p-0"
-        onClick={handleContentClick}
-      >
-        <DialogTitle className="sr-only">{title || 'Image'}</DialogTitle>
-        <div className="relative w-full">
-          <div className="bg-black rounded-xl overflow-hidden">
-            <div 
-              className="relative h-[80vh] cursor-zoom-in" 
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent closing
-                setLightboxOpen(true); // Open lightbox
-              }}
-            >
-              <Image 
-                src={imageUrl} 
-                alt={title || 'Image'} 
-                layout="fill"
-                objectFit="contain"
-                className="w-full h-auto"
-              />
-              
-              {/* Metadata overlay (if any) */}
-              {(title || description) && (
-                <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-4 z-10">
-                  {title && <h3 className="text-lg font-medium">{title}</h3>}
-                  {description && <p className="text-sm opacity-80">{description}</p>}
-                </div>
-              )}
-            </div>
-            
-            {/* Make sure lightbox doesn't close modal */}
-            <Lightbox
-              open={lightboxOpen}
-              close={() => setLightboxOpen(false)}
-              slides={[{ 
-                src: imageUrl, 
-                alt: title,
-                title: title,
-                description: description 
-              }]}
-              plugins={[Zoom, Captions]}
-              zoom={{
-                maxZoomPixelRatio: 5,
-                scrollToZoom: true,
-              }}
-              carousel={{ finite: true }}
-              render={{
-                buttonPrev: () => null,
-                buttonNext: () => null,
-              }}
-              controller={{ closeOnBackdropClick: true }}
-            />
-          </div>
-        </div>
-      </DialogContentWithoutClose>
-    </Dialog>
-  );
+    <Lightbox
+      open={isOpen}
+      close={onClose}
+      slides={[{ 
+        src: imageUrl, 
+        alt: title || 'Image',
+        title: title,
+        description: description 
+      }]}
+      plugins={[Zoom, Captions]}
+      
+      // Enhanced zoom configuration
+      zoom={{
+        maxZoomPixelRatio: 8,        // Allow greater zoom
+        scrollToZoom: true,          // Enable mouse wheel zoom
+        // pinchToZoom: true,           // Enable touch pinch zoom - Commented out due to potential TS definition issue
+        doubleClickMaxStops: 2,      // Double-click zooms in 2 levels max
+        doubleClickDelay: 300,       // ms between clicks to count as double-click
+        keyboardMoveDistance: 50,    // Pixel distance when using arrow keys
+        wheelZoomDistanceFactor: 100, // Control zoom speed with wheel
+        zoomInMultiplier: 2,         // How much to zoom in per step
+        
+        // Track zoom changes if needed - Commented out due to potential TS definition issue
+        // onZoomChange: (zoom: number) => setCurrentZoom(zoom)
+      }}
+      
+      // Clean up carousel controls since we only have one image
+      carousel={{ finite: true }}
+      render={{
+        buttonPrev: () => null,
+        buttonNext: () => null,
+      }}
+      
+      // Additional options for a professional UX
+      animation={{ swipe: 250 }}  // Faster animations
+      controller={{ 
+        closeOnBackdropClick: true,
+        closeOnPullDown: true     // Mobile-friendly close gesture
+      }}
+      
+      // Optional: className for styling the lightbox container
+      className="image-modal-lightbox"
+    />
+  )
 } 
