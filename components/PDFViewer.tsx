@@ -103,7 +103,7 @@ export function PDFViewer({ documentUrl }: PDFViewerProps) {
     <div className="flex flex-col items-center h-full w-full bg-muted">
       {/* Controls UI - Show only when document is loaded */} 
       {numPages && !isDocumentLoading && (
-        <div className="flex items-center justify-center gap-2 p-2 bg-card rounded-full mb-4 shadow-sm z-10 sticky top-4 flex-wrap">
+        <div className="flex items-center justify-center gap-2 p-1 sm:p-2 bg-card rounded-full mb-2 sm:mb-4 shadow-xs z-10 sticky top-2 flex-wrap max-w-[95%] mx-auto">
           {/* Page Navigation */}
           <Button variant="ghost" size="icon" onClick={goToPrevPage} disabled={pageNumber <= 1}>
             <ChevronLeft className="h-5 w-5" />
@@ -139,7 +139,7 @@ export function PDFViewer({ documentUrl }: PDFViewerProps) {
       )}
 
       {/* Document container with improved overflow handling */}
-      <div className="w-full flex-grow overflow-auto relative">
+      <div className="w-full flex-grow overflow-auto relative max-h-[60vh] sm:max-h-none">
         {isDocumentLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/50">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>

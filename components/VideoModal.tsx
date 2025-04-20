@@ -15,11 +15,11 @@ export function VideoModal({ isOpen, onClose, videoId, title, description }: Vid
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContentWithoutClose 
         onClose={onClose} 
-        className="w-11/12 sm:max-w-4xl border-none bg-transparent shadow-none p-0 max-h-[95vh]"
+        className="w-[95vw] max-w-[95vw] sm:max-w-4xl border-none bg-transparent shadow-none p-0 max-h-[90vh] landscape:max-h-[85vh]"
       >
         <DialogTitle className="sr-only">{title || 'Video'}</DialogTitle>
         <div className="relative w-full">
-          <div className="relative pt-[56.25%] rounded-xl overflow-hidden">
+          <div className="relative pt-[56.25%] rounded-xl overflow-hidden max-h-[80vh] landscape:max-h-[70vh]">
             <iframe
               src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
               className="absolute inset-0 w-full h-full rounded-xl"

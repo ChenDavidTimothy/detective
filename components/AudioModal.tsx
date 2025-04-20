@@ -103,7 +103,10 @@ export function AudioModal({ isOpen, onClose, audioUrl, title, coverImage, descr
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContentWithoutClose onClose={onClose} className="sm:max-w-md">
+      <DialogContentWithoutClose 
+        onClose={onClose} 
+        className="w-[95vw] sm:max-w-md max-h-[85vh] landscape:max-h-[90vh] overflow-hidden"
+      >
         <DialogHeader>
           <DialogTitle>{title || 'Audio Player'}</DialogTitle>
           {description && (
@@ -111,9 +114,9 @@ export function AudioModal({ isOpen, onClose, audioUrl, title, coverImage, descr
           )}
         </DialogHeader>
         
-        <div className="relative w-full">
+        <div className="relative w-full overflow-auto">
           {/* Cover image - Ensure parent div has relative positioning */}
-          <div className="relative aspect-square w-full bg-gradient-to-br from-primary/10 to-primary/5">
+          <div className="relative aspect-square w-full max-h-[40vh] landscape:max-h-[30vh] bg-gradient-to-br from-primary/10 to-primary/5">
             {coverImage ? (
               <Image 
                 src={coverImage} 
