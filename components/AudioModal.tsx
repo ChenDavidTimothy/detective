@@ -103,10 +103,7 @@ export function AudioModal({ isOpen, onClose, audioUrl, title, coverImage, descr
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContentWithoutClose 
-        onClose={onClose} 
-        className="w-11/12 sm:max-w-md max-h-[90vh] overflow-y-auto"
-      >
+      <DialogContentWithoutClose onClose={onClose} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title || 'Audio Player'}</DialogTitle>
           {description && (
