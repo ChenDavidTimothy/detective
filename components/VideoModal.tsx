@@ -13,7 +13,10 @@ type VideoModalProps = {
 export function VideoModal({ isOpen, onClose, videoId, title, description }: VideoModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContentWithoutClose onClose={onClose} className="sm:max-w-4xl border-none bg-transparent shadow-none p-0">
+      <DialogContentWithoutClose 
+        onClose={onClose} 
+        className="w-11/12 sm:max-w-4xl border-none bg-transparent shadow-none p-0 max-h-[95vh]"
+      >
         <DialogTitle className="sr-only">{title || 'Video'}</DialogTitle>
         <div className="relative w-full">
           <div className="relative pt-[56.25%] rounded-xl overflow-hidden">

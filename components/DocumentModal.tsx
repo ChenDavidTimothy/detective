@@ -81,7 +81,10 @@ export function DocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent onClose={onClose} className="sm:max-w-5xl w-[95vw] h-[95vh] p-0 flex flex-col">
+      <DialogContent
+        onClose={onClose}
+        className="w-11/12 max-w-lg max-h-[90vh] p-0 flex flex-col md:max-w-2xl lg:max-w-4xl xl:max-w-5xl"
+      >
         <DialogHeader className="flex flex-row items-center justify-between p-4 border-b bg-card sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <FileText className="w-5 h-5 text-primary" />
@@ -96,7 +99,7 @@ export function DocumentModal({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 pr-12">
+          <div className="flex items-center gap-2">
             {fetchStatus === 'success' && documentUrl && (
               <Button
                 variant="outline"
@@ -113,7 +116,7 @@ export function DocumentModal({
 
         <div className="flex-grow relative flex flex-col h-full overflow-auto">
           {fetchStatus === 'loading' && (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
               <p className="text-lg font-medium">Preparing document...</p>
               <p className="text-muted-foreground text-sm mt-1">This might take a moment.</p>
@@ -121,7 +124,7 @@ export function DocumentModal({
           )}
           
           {fetchStatus === 'error' && (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8 text-destructive">
+            <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8 text-destructive">
               <AlertCircle className="w-12 h-12 mb-4" />
               <p className="text-lg font-medium">Error accessing document</p>
               <p className="text-sm mt-1">There was a problem verifying the document URL. Please try again later.</p>
